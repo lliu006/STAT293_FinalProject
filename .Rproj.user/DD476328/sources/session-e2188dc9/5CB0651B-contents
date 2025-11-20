@@ -1,0 +1,85 @@
+---
+title: "00_requirements"
+author: "Yijia Xue and Linlin Liu"
+date: "`r Sys.Date()`"
+output: pdf_document
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+cat("========================================\n")
+cat("GIMME Project - Package Setup\n")
+cat("========================================\n\n")
+
+# Check R version 
+r_version <- getRversion()
+cat("R version:", as.character(r_version), "\n")
+if (r_version < "4.0.0") {
+  warning("R version 4.0.0 or higher is recommended for this project.")
+}
+cat("\n")
+
+## Install package if missing 
+install_if_missing <- function(pkg) {
+  if (!require(pkg, character.only = TRUE, quietly = TRUE)) {
+    cat("Installing package:", pkg, "...\n")
+    install.packages(pkg, dependencies = TRUE)
+    library(pkg, character.only = TRUE)
+    cat(pkg, "installed and loaded\n")
+  } else {
+    cat(pkg, "already installed and loaded\n")
+  }
+}
+
+# Required packages
+required_pkgs <- c(
+  "gimme",    # GIMME implementation
+  "MASS",     # multivariate normal simulation
+  "ggplot2",  # plotting
+  "reshape2"  # data reshaping for plots
+)
+
+for (p in required_pkgs) {
+  install_if_missing(p)
+}
+
+cat("\nAll required packages are loaded.\n\n")
+
+# Global options
+set.seed(1234)
+
+options(
+  scipen = 999,  # Avoid scientific notation
+  digits = 3     # Number of digits to print
+)
+
+cat("Global options set.\n\n")
+
+# 5. Directory structure
+dirs <- c(
+  "data",
+  "data/simulated",
+  "data/results",
+  "presentation"
+)
+
+for (d in dirs) {
+  if (!dir.exists(d)) {
+    dir.create(d, recursive = TRUE)
+    cat("Created directory:", d, "\n")
+  } else {
+    cat("Directory exists:", d, "\n")
+  }
+}
+
+cat("\n")
+
+cat("========================================\n")
+cat("Setup complete.\n")
+cat("========================================\n\n")
+```
