@@ -25,25 +25,24 @@ This repository contains all code and documentation for our STAT 293 Final Proje
 Below is the final directory structure required for submission:
 
 ```text
-├── README.md                 # Project overview and instructions
+├── README.md              # Project overview and instructions
 │
-├── code/                     # All R scripts for simulation and analysis
-│   ├── simulate_networks.R   # Simulation of group and individual uSEM data
-│   ├── run_gimme.R           # Running the GIMME algorithm
-│   ├── analyze_results.R     # Recovery metrics and summary plots
-│   └── utils.R               # Small helper functions
+├── 00_requirements.R      # Installs and loads required R packages
+├── 01_DataSimulation.R    # Simulation of group and individual uSEM data
 │
-├── results/                  # Outputs generated after running the code
-│   ├── figures/              # Time series plots, fit index histograms
-│   └── gimme_output/         # Output files from gimmeSEM()
+├── 11_Method1.R           # Main implementation of GIMME
+├── 12_Method1_aux.R       # Auxiliary/helper functions for GIMME
 │
-├── report/                   # Final written project deliverable
-│   ├── report.tex            # Main LaTeX report source
-│   └── report.pdf            # Compiled LaTeX report
+├── FinalReport.tex        # Final LaTeX report source
+├── FinalReport.pdf        # Compiled report
 │
-└── presentation/             # Beamer slide deck for presentation
-    ├── gimme_slides.tex      # Beamer presentation source
-    └── gimme_slides.pdf      # Compiled presentation
+├── data/                  # Data generated/used in the project
+│   ├── simulated/         # Raw simulated datasets
+│   └── results/           # Processed results
+│
+└── presentation/          # Slides for the final presentation
+    ├── presentation.tex   # Beamer presentation source
+    └── presentation.pdf   # Compiled presentation
 ```
 
 ## Simulation Summary
@@ -64,48 +63,53 @@ $$
 X(t) = (I - A)^{-1} \left( \Phi X(t-1) + \varepsilon(t) \right), \qquad \varepsilon(t) \sim N(0, \sigma_\varepsilon I).
 $$
 
-All simulated data is saved in `results/`.
+Simulated data and analysis outputs are saved in `data/`.
 
 ## Running the Project
 
-### Install Requirements: R 4.3.1
+### Setup Environment
 
 ```r
-install.packages(c("gimme", "MASS", "ggplot2", "reshape2"))
+source("00_requirements.R")
 ```
 
-### Run Simulation
+This will:
+- check R version,
+- install, if needed, and load required packages, and
+- create the directory structure `data/`, `data/simulated/`, `data/results/`, and `presentation/`.
+  
+### Simulate Data
 
 ```r
-source("code/simulate_networks.R")
+source("01_DataSimulation.R")
 ```
 
-This generates subject-specific networks, simulated time series, heterogeneity summary, and example time series plots.
+This will:
+- define the true group-level connectivity matrices (A, $\Phi$),
+- generate individual-level matrices with heterogeneity,
+- simulate multivariate time series for all subjects, and
+- save simulated datasets under `data/simulated/`.
 
 ### Run GIMME
 
 ```r
-source("code/run_gimme.R")
+source("11_Method1.R")
 ```
 
-This creates the GIMME output folder with group-level path diagram, individual path estimates, summary fit indices, and path count matrix.
-
-### Analysis of Results
-
-```r
-source("code/analyze_results.R")
-```
-
-This script computes detection of group-level paths, distribution of individual-level paths, RMSEA/CFI/SRMR summaries, and example recovery plots. Outputs are saved under `results/figures/`.
+This will:
+- load the simulated data,
+- run the GIMME algorithm on all subjects,
+- write GIMME output and summaries under `data/results/`, and
+- may call helper functions defined in `12_Method1_aux.R`.
 
 ### Expected Outcomes
 
-Given the simulation structure, we expect:
-  - strong recovery of the main contemporaneous chain (X1 → X2 → X3 → X4 → X5),
+Based on the simulation design, we expect:
+  - strong recovery of the main contemporaneous chain $X_1 \to X_2 \to X_3 \to X_4 \to X_5$,
   - high detection of lagged autoregressive paths,
-  - detection of cross-lagged edges from X1(t−1) → X2(t) and X1(t−1) → X3(t),
+  - recovery of lagged edges from $X_1 (t−1) \to X_2 (t)$ and $X_1 (t−1) \to X_3 (t)$, 
   - identification of many individual-specific edges, and
-  - good model fit (low RMSEA, high CFI) for most subjects.
+  - good overall model fit (low RMSEA, high CFI) for most subjects.
 
 Exact recovery rates vary slightly across runs but generally align with the behavior described in Gates & Molenaar (2012).
 
