@@ -16,14 +16,14 @@ cat("============================================================\n")
 cat(" GIMME Project - Data Simulation\n")
 cat("============================================================\n\n")
 
-# Core packages 
+# Core packages
 suppressPackageStartupMessages({
   library(MASS)      # for mvrnorm
   library(ggplot2)   # for plotting
   library(reshape2)  # for melt()
 })
 
-set.seed(1234) 
+set.seed(1234)
 
 # Make sure results directories exist 
 if (!dir.exists("results")) dir.create("results")
@@ -40,25 +40,25 @@ cat("Simulation settings:\n")
 cat("Subjects:", n_subj, "\n")
 cat("Time points/subject:", T_obs, "\n")
 cat("Number of ROIs:", p, "\n")
-cat("Innovation variable:", sigma_eps, "\n\n")
+cat("Innovation var:", sigma_eps, "\n\n")
 
 # 2. Group-level uSEM structure: A (contemporaneous) and Phi (lagged)
 
-# A: contemporaneous influences within time t
+# A: contemporaneous influences (within time t)
 A_group <- matrix(0, nrow = p, ncol = p)
 
 # j -> i corresponds to A[i, j]
-A_group[2, 1] <- 0.30   # X1 → X2
-A_group[3, 2] <- 0.30   # X2 → X3
-A_group[4, 3] <- 0.30   # X3 → X4
-A_group[5, 4] <- 0.30   # X4 → X5
+A_group[2, 1] <- 0.30 # X1 -> X2
+A_group[3, 2] <- 0.30 # X2 -> X3
+A_group[4, 3] <- 0.30 # X3 -> X4
+A_group[5, 4] <- 0.30 # X4 -> X5
 
 # Phi: lagged influences (t-1 -> t)
 Phi_group <- matrix(0, nrow = p, ncol = p)
 
-diag(Phi_group) <- 0.40   # AR: Xi(t-1) -> Xi(t)
-Phi_group[2, 1] <- 0.20   # X1(t-1) -> X2(t)
-Phi_group[3, 1] <- 0.15   # X1(t-1) -> X3(t)
+diag(Phi_group) <- 0.40 # AR: Xi(t-1) -> Xi(t)
+Phi_group[2, 1] <- 0.20 # X1(t-1) -> X2(t)
+Phi_group[3, 1] <- 0.15 # X1(t-1) -> X3(t)
 
 # Helper to control max absolute coefficient size
 shrink_mat <- function(M, max_abs = 0.6){
@@ -66,7 +66,7 @@ shrink_mat <- function(M, max_abs = 0.6){
   M
 }
 
-A_group   <- shrink_mat(A_group)
+A_group <- shrink_mat(A_group)
 Phi_group <- shrink_mat(Phi_group)
 
 cat("TRUE group-level A (contemporaneous):\n")
@@ -75,7 +75,7 @@ cat("\nTRUE group-level Phi (lagged):\n")
 print(Phi_group)
 
 n_contemp <- sum(A_group != 0)
-n_lagged  <- sum(Phi_group != 0)
+n_lagged <- sum(Phi_group != 0)
 cat("\nTrue group paths:\n")
 cat("Contemporaneous:", n_contemp, "\n")
 cat("Lagged:", n_lagged,  "\n")
@@ -83,14 +83,14 @@ cat("Total:", n_contemp + n_lagged, "\n\n")
 
 # 3. Generate individual A^(i), Phi^(i)
 generate_individual_mats <- function(A_group, Phi_group,
-                                     prob_extra  = 0.10,
-                                     sd_weights  = 0.05,
+                                     prob_extra = 0.10,
+                                     sd_weights = 0.05,
                                      extra_range = c(0.15, 0.35)){
 
   p <- nrow(A_group)
 
   # Perturb around group weights
-  A_i <- A_group  + matrix(rnorm(p * p, 0, sd_weights), p, p)
+  A_i <- A_group + matrix(rnorm(p * p, 0, sd_weights), p, p)
   Phi_i <- Phi_group + matrix(rnorm(p * p, 0, sd_weights), p, p)
 
   # No contemporaneous self-loops
@@ -130,4 +130,144 @@ generate_individual_mats <- function(A_group, Phi_group,
     n_extra_lagged = n_extra_lagged
   )
 }
+
+# 4. Simulate time series from uSEM
+simulate_subject <- function(A, Phi, T_obs, sigma_eps){
+  p <- nrow(A)
+  I_p <- diag(p)
+
+  X <- matrix(0, nrow = T_obs, ncol = p)
+
+  # Initial state
+  X[1, ] <- mvrnorm(1, mu = rep(0, p), Sigma = I_p)
+
+  I_minus_A <- I_p - A
+  det_val <- det(I_minus_A)
+
+  if (abs(det_val) < 1e-8){
+    warning("(I - A) is near-singular (det = ", round(det_val, 6),
+            "); regenerating subject.")
+    return(NULL)
+  }
+
+  I_minus_A_inv <- solve(I_minus_A)
+
+  for (t in 2:T_obs){
+    eps_t <- mvrnorm(1, mu = rep(0, p), Sigma = sigma_eps * I_p)
+    tmp <- Phi %*% X[t - 1, ] + eps_t
+    X[t, ] <- I_minus_A_inv %*% tmp
+  }
+
+  colnames(X) <- paste0("X", 1:p)
+  as.data.frame(X)
+}
+
+# 5. Simulate full sample
+cat("Simulating data for", n_subj, "subjects...\n")
+
+true_mats <- vector("list", n_subj) # store A^(i), Phi^(i)
+simData   <- vector("list", n_subj) # T x p data frames
+extra_paths_summary <- data.frame(
+  subject = 1:n_subj,
+  extra_contemp = 0,
+  extra_lagged  = 0
+)
+
+n_failed <- 0
+
+for (s in 1:n_subj){
+  repeat {
+    mats_i <- generate_individual_mats(A_group, Phi_group)
+    dat_i  <- simulate_subject(mats_i$A, mats_i$Phi, T_obs, sigma_eps)
+
+    if (!is.null(dat_i)){
+      true_mats[[s]] <- mats_i
+      simData[[s]]   <- dat_i
+      extra_paths_summary$extra_contemp[s] <- mats_i$n_extra_contemp
+      extra_paths_summary$extra_lagged[s]  <- mats_i$n_extra_lagged
+      break
+    } else {
+      n_failed <- n_failed + 1
+    }
+  }
+}
+names(simData) <- paste0("S", 1:n_subj)
+
+cat("Data simulation complete.\n")
+if (n_failed > 0){
+  cat("  (", n_failed, "unstable draws regenerated)\n", sep = "")
+}
+
+cat("\nHeterogeneity summary:\n")
+cat("Mean extra contemporaneous paths/subject:",
+    round(mean(extra_paths_summary$extra_contemp), 4), "\n")
+cat("Mean extra lagged paths/subject:",
+    round(mean(extra_paths_summary$extra_lagged), 4), "\n")
+cat("Total extra paths across all subjects:",
+    sum(extra_paths_summary$extra_contemp + extra_paths_summary$extra_lagged),
+    "\n\n")
+
+# 6. Example visualization
+cat("Creating example time series plot (Subject 1)...\n")
+
+example_data <- simData[[1]]
+example_long <- melt(as.matrix(example_data))
+colnames(example_long) <- c("Time", "Variable", "Value")
+
+p_ts <- ggplot(example_long, aes(x = Time, y = Value, color = Variable)) +
+  geom_line(alpha = 0.7) +
+  facet_wrap(~ Variable, ncol = 1, scales = "free_y") +
+  labs(title = "Example Simulated Time Series (Subject 1)",
+       x = "Time point",
+       y = "Signal") +
+  theme(legend.position = "none")
+
+ggsave(
+  filename = "results/figures/example_timeseries_subject1.pdf",
+  plot = p_ts,
+  width = 8,
+  height = 7
+)
+
+# 7. Save simulation objects
+sim_outfile_rdata <- "results/simulated/simulated_data.RData"
+sim_outfile_rds <- "results/simulated/simulated_data.rds"
+
+save(
+  true_mats,
+  simData,
+  A_group,
+  Phi_group,
+  extra_paths_summary,
+  n_subj,
+  T_obs,
+  p,
+  sigma_eps,
+  file = sim_outfile_rdata
+)
+
+saveRDS(
+  list(
+    true_mats = true_mats,
+    simData = simData,
+    A_group = A_group,
+    Phi_group = Phi_group,
+    extra_paths_summary = extra_paths_summary,
+    settings = list(
+      n_subj = n_subj,
+      T_obs = T_obs,
+      p = p,
+      sigma_eps = sigma_eps
+    )
+  ),
+  file = sim_outfile_rds
+)
+
+cat("Saved simulation objects to:\n")
+cat("  -", sim_outfile_rdata, "\n")
+cat("  -", sim_outfile_rds, "\n\n")
+
+cat("============================================================\n")
+cat(" Data simulation complete.\n")
+cat("============================================================\n\n")
 ```
