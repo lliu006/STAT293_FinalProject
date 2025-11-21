@@ -1,5 +1,5 @@
 ---
-title: "00_requirements"
+title: "00_Requirements"
 author: "Yijia Xue and Linlin Liu"
 date: "`r Sys.Date()`"
 output: pdf_document

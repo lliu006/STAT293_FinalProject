@@ -1,0 +1,133 @@
+---
+title: "01_DataSimulation"
+author: "Yijia Xue and Linlin Liu"
+date: "`r Sys.Date()`"
+output: pdf_document
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+cat("============================================================\n")
+cat(" GIMME Project - Data Simulation\n")
+cat("============================================================\n\n")
+
+# Core packages 
+suppressPackageStartupMessages({
+  library(MASS)      # for mvrnorm
+  library(ggplot2)   # for plotting
+  library(reshape2)  # for melt()
+})
+
+set.seed(1234) 
+
+# Make sure results directories exist 
+if (!dir.exists("results")) dir.create("results")
+if (!dir.exists("results/figures")) dir.create("results/figures")
+if (!dir.exists("results/simulated")) dir.create("results/simulated")
+
+# 1. Simulation settings
+n_subj    <- 100   # number of subjects
+T_obs     <- 200   # time points per subject
+p         <- 5     # number of ROIs/variables
+sigma_eps <- 0.05  # innovation variance
+
+cat("Simulation settings:\n")
+cat("Subjects:", n_subj, "\n")
+cat("Time points/subject:", T_obs, "\n")
+cat("Number of ROIs:", p, "\n")
+cat("Innovation variable:", sigma_eps, "\n\n")
+
+# 2. Group-level uSEM structure: A (contemporaneous) and Phi (lagged)
+
+# A: contemporaneous influences within time t
+A_group <- matrix(0, nrow = p, ncol = p)
+
+# j -> i corresponds to A[i, j]
+A_group[2, 1] <- 0.30   # X1 → X2
+A_group[3, 2] <- 0.30   # X2 → X3
+A_group[4, 3] <- 0.30   # X3 → X4
+A_group[5, 4] <- 0.30   # X4 → X5
+
+# Phi: lagged influences (t-1 -> t)
+Phi_group <- matrix(0, nrow = p, ncol = p)
+
+diag(Phi_group) <- 0.40   # AR: Xi(t-1) -> Xi(t)
+Phi_group[2, 1] <- 0.20   # X1(t-1) -> X2(t)
+Phi_group[3, 1] <- 0.15   # X1(t-1) -> X3(t)
+
+# Helper to control max absolute coefficient size
+shrink_mat <- function(M, max_abs = 0.6){
+  M[abs(M) > max_abs] <- max_abs * sign(M[abs(M) > max_abs])
+  M
+}
+
+A_group   <- shrink_mat(A_group)
+Phi_group <- shrink_mat(Phi_group)
+
+cat("TRUE group-level A (contemporaneous):\n")
+print(A_group)
+cat("\nTRUE group-level Phi (lagged):\n")
+print(Phi_group)
+
+n_contemp <- sum(A_group != 0)
+n_lagged  <- sum(Phi_group != 0)
+cat("\nTrue group paths:\n")
+cat("Contemporaneous:", n_contemp, "\n")
+cat("Lagged:", n_lagged,  "\n")
+cat("Total:", n_contemp + n_lagged, "\n\n")
+
+# 3. Generate individual A^(i), Phi^(i)
+generate_individual_mats <- function(A_group, Phi_group,
+                                     prob_extra  = 0.10,
+                                     sd_weights  = 0.05,
+                                     extra_range = c(0.15, 0.35)){
+
+  p <- nrow(A_group)
+
+  # Perturb around group weights
+  A_i <- A_group  + matrix(rnorm(p * p, 0, sd_weights), p, p)
+  Phi_i <- Phi_group + matrix(rnorm(p * p, 0, sd_weights), p, p)
+
+  # No contemporaneous self-loops
+  diag(A_i) <- 0
+
+  A_i <- shrink_mat(A_i)
+  Phi_i <- shrink_mat(Phi_i)
+
+  # Add subject-specific edges
+  n_extra_contemp <- 0
+  n_extra_lagged  <- 0
+
+  for(i in 1:p){
+    for(j in 1:p){
+      if (i == j) next
+
+      # Extra contemporaneous edge
+      if (A_group[i, j] == 0 && runif(1) < prob_extra){
+        A_i[i, j] <- runif(1, extra_range[1], extra_range[2]) *
+                     sample(c(-1, 1), 1)
+        n_extra_contemp <- n_extra_contemp + 1
+      }
+
+      # Extra lagged edge
+      if (Phi_group[i, j] == 0 && runif(1) < prob_extra){
+        Phi_i[i, j] <- runif(1, extra_range[1], extra_range[2]) *
+                       sample(c(-1, 1), 1)
+        n_extra_lagged <- n_extra_lagged + 1
+      }
+    }
+  }
+
+  list(
+    A                = A_i,
+    Phi              = Phi_i,
+    n_extra_contemp  = n_extra_contemp,
+    n_extra_lagged   = n_extra_lagged
+  )
+}
+```
