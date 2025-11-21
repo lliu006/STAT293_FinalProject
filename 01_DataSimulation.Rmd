@@ -124,10 +124,10 @@ generate_individual_mats <- function(A_group, Phi_group,
   }
 
   list(
-    A                = A_i,
-    Phi              = Phi_i,
-    n_extra_contemp  = n_extra_contemp,
-    n_extra_lagged   = n_extra_lagged
+    A = A_i,
+    Phi = Phi_i,
+    n_extra_contemp = n_extra_contemp,
+    n_extra_lagged = n_extra_lagged
   )
 }
 ```
