@@ -1,0 +1,133 @@
+---
+title: "03_AnalysisExamples"
+date: "`r Sys.Date()`"
+output: pdf_document
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,
+                      message = FALSE,
+                      warning = FALSE,
+                      fig.width = 7,
+                      fig.height = 5)
+```
+
+
+```{r}
+library(dplyr)
+library(ggplot2)
+
+# ensure results folder exists
+if (!dir.exists("results")) dir.create("results")
+```
+
+```{r}
+# load the csv created by 02_Method file
+all_res <- read.csv("results/all_results.csv")
+```
+
+```{r}
+# summary for A (contemporaneous)
+summary_A <- all_res %>%
+  dplyr::filter(matrix == "A") %>%
+  dplyr::group_by(T_obs) %>%
+  dplyr::summarise(
+    
+    mean_TPR = mean(sensitivity, na.rm = TRUE), # TPR
+    sd_TPR = sd(sensitivity, na.rm = TRUE),
+
+    mean_FPR = mean(FPR, na.rm = TRUE),
+    sd_FPR = sd(FPR, na.rm = TRUE),
+
+    mean_spec = mean(specificity, na.rm = TRUE),
+    sd_spec = sd(specificity, na.rm = TRUE),
+
+    # average counts of FP and FN
+    mean_FP = mean(FP, na.rm = TRUE),
+    sd_FP = sd(FP, na.rm = TRUE),
+
+    mean_FN = mean(FN, na.rm = TRUE),
+    sd_FN = sd(FN, na.rm = TRUE),
+
+    # false negative rate (FNR)
+    mean_FNR = mean(FN / (TP + FN), na.rm = TRUE),
+    sd_FNR = sd(FN / (TP + FN), na.rm = TRUE),
+
+    .groups = "drop"
+    
+  )
+summary_A
+
+summary_Phi <- all_res %>%
+  dplyr::filter(matrix == "Phi") %>%
+  dplyr::group_by(T_obs) %>%
+  dplyr::summarise(
+    mean_TPR = mean(sensitivity, na.rm = TRUE),
+    sd_TPR = sd(sensitivity, na.rm = TRUE),
+    .groups = "drop"
+  )
+summary_Phi
+```
+
+```{r}
+# TPR vs. T for A and Phi
+p_tpr_both <- ggplot() +
+  geom_line(data = summary_A,
+            aes(x = T_obs,
+                y = mean_TPR,
+                color = "A")) +
+  geom_point(data = summary_A,
+             aes(x = T_obs,
+                 y = mean_TPR,
+                 color = "A")) +
+  geom_line(data = summary_Phi,
+            aes(x = T_obs,
+                y = mean_TPR,
+                color = "Phi")) +
+  geom_point(data = summary_Phi,
+             aes(x = T_obs,
+                 y = mean_TPR,
+                 color = "Phi")) +
+  labs(
+    x = "T (time points per subject)",
+    y = "True Positive Rate (TPR)",
+    color = "Matrix",
+    title = "TPR vs. T for A and Phi"
+    ) +
+  theme_minimal()
+
+p_tpr_both
+
+ggsave("results/TPR_vs_T_A_Phi_analysis.png",
+       plot = p_tpr_both,
+       width = 7,
+       height = 5,
+       dpi = 300)
+```
+
+```{r}
+# TPR for A with error bars
+p_tpr_A <- ggplot(summary_A,
+                  aes(x = T_obs,
+                      y = mean_TPR)) +
+  geom_line() +
+  geom_point(size = 3) +
+  geom_errorbar(aes(ymin = mean_TPR - sd_TPR,
+                    ymax = mean_TPR + sd_TPR),
+                width = 10) +
+  labs(
+    x = "T (time points per subject)",
+    y = "True Positive Rate (TPR) for A",
+    title = "Group-level Recovery of Contemporaneous Edges (A)"
+    ) +
+  theme_minimal()
+
+p_tpr_A
+
+ggsave("results/TPR_A_errorbars_analysis.png",
+       plot = p_tpr_A,
+       width = 7,
+       height = 5,
+       dpi = 300)
+```
