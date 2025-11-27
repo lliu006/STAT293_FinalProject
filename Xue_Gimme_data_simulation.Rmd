@@ -11,6 +11,11 @@ editor_options:
 ```{r}
 library(MASS)
 library(gimme)
+library(dplyr)
+library(ggplot2)
+library(qgraph)
+
+
 if (dir.exists("sim_data"))    unlink("sim_data", recursive = TRUE)
 if (dir.exists("sim_results")) unlink("sim_results", recursive = TRUE)
 
@@ -76,18 +81,17 @@ $[\eta_{t}=(I - A_{i})^{-1}\left[\Phi_{i}\,\eta_{t-1} + \zeta_{t}\right]$
 ```{r}
 simulate_subject_total <- function(T_total, A, Phi, Psi) {
   p <- nrow(A)
-  # TOTAL <- T_obs+ burn_in
+  
   X <- matrix(NA, nrow = T_total, ncol = p)
   colnames(X) <- paste0("X", 1:p)
 
-  # initial state eta_1 ~ N(0, I)
+  # initial state eta_1 
   X[1, ] <- runif(p,min=0, max=0.5)
 
   # (I - A)^(-1)
   M <- solve(diag(p) - A)
 
   for (t in 2:T_total) {
-    # Sigma_safe <- Psi + 1e-4 * diag(p)
     zeta_t <- mvrnorm(1, mu = rep(0, p), Sigma = Psi)  #zeta is the white noise
     X[t, ] <- M %*% (Phi %*% X[t - 1, ] + zeta_t)
   }
@@ -119,33 +123,34 @@ generate_random_individual_edges <- function(M_common,
   p <- nrow(M_common)
   M <- M_common
 
-  # ---- 1. Choose how many individual edges this subject gets ----
+  # 1. Choose how many individual edges this subject gets 
   k_indiv <- random_k(min_k, max_k)
   if (k_indiv == 0) return(M)
 
-  # ---- 2. Find eligible positions (cannot overwrite group edges) ----
+  # 2. Find eligible positions (cannot overwrite group edges) 
   possible <- which(M_common == 0, arr.ind = TRUE)
 
-  # optionally remove diagonal
+      # optionally remove diagonal
   if (!allow_diag) {
     possible <- possible[possible[,1] != possible[,2], , drop = FALSE]
   }
   if (nrow(possible) == 0) return(M)
-  # safety: cannot choose more edges than exist
+  
+      # safety: cannot choose more edges than exist
   k_indiv <- min(k_indiv, nrow(possible))
 
-  # ---- 3. Randomly select k edges ----
+  # 3. Randomly select k edges 
   idx <- sample(seq_len(nrow(possible)), size = k_indiv, replace = FALSE)
   chosen <- possible[idx, , drop = FALSE]
 
-  # ---- 4. Fill with random values ----
+  # 4. Fill with random values ----
   for (j in seq_len(nrow(chosen))) {
     to   <- chosen[j, 1]
     from <- chosen[j, 2]
     M[to, from] <- runif(1,low,high)
   }
 
-  # ensure no diagonals for A
+      # ensure no diagonals for A
   if (!allow_diag) diag(M) <- diag(M_common)
 
   M
@@ -188,47 +193,50 @@ compare_mats <- function(M_true, M_est, tol = 1e-8) {
 run_one_sim <- function(T_obs, N = 100, p = 8,
                         group_cutoff = 0.65,
                         seed = NULL,
-                        burn_in=100) {
-  # if (is.null(burn_in)) burn_in <- 0
+                        burn_in=100,
+                        return_nets=FALSE) {
+
   if (!is.null(seed)) set.seed(seed)
   
   T_total <- T_obs + burn_in
   
-  ## ----- 1. Define group-level A_common -----
+  ## 1. Define group-level A_common 
   A_common <- matrix(0, p, p)
   for (j in 1:(p - 1)) {
     A_common[j + 1, j] <- runif(1, 0.2, 0.35)
   }
   diag(A_common) <- 0
 
-  ## ----- 2. Define group-level Phi_common -----
+  ## 2. Define group-level Phi_common 
   Phi_common <- matrix(0, p, p)
   diag(Phi_common) <- runif(p, min = 0.1, max = 0.2)
+    
+    #### To make Phi denser ####
+  
+    # first off-diagonal band
+    for (j in 1:(p - 1)) {
+      Phi_common[j + 1, j] <- runif(1, 0.2, 0.3)
+    }
+    # second off-diagonal band
+    for (j in 1:(p - 2)) {
+      Phi_common[j + 2, j] <- runif(1, 0.1, 0.2)
+    }
+    # a few extra random group edges
+    extra_edges <- 3
+    for (k in 1:extra_edges) {
+      r <- sample(1:p, 1)
+      c <- sample(setdiff(1:p, r), 1)
+      Phi_common[r, c] <- runif(1, 0.03, 0.08)
+    }
 
-  # first off-diagonal band
-  for (j in 1:(p - 1)) {
-    Phi_common[j + 1, j] <- runif(1, 0.2, 0.3)
-  }
-  # second off-diagonal band
-  for (j in 1:(p - 2)) {
-    Phi_common[j + 2, j] <- runif(1, 0.1, 0.2)
-  }
-  # a few extra random group edges
-  extra_edges <- 3
-  for (k in 1:extra_edges) {
-    r <- sample(1:p, 1)
-    c <- sample(setdiff(1:p, r), 1)
-    Phi_common[r, c] <- runif(1, 0.03, 0.08)
-  }
-
-  ## ----- 3. Simulate N subjects -----
+  ## 3. Simulate N subjects 
   A_list   <- vector("list", N)
   Phi_list <- vector("list", N)
   Psi_list <- vector("list", N)
   X_list   <- vector("list", N)
 
   for (s in 1:N) {
-    # A_i: contemporaneous, no diag, few individual edges
+    # A_i: contemporaneous, no diag, few individual edges (Sparse)
     A_i <- generate_random_individual_edges(
       M_common   = A_common,
       min_k      = 0,
@@ -285,7 +293,7 @@ run_one_sim <- function(T_obs, N = 100, p = 8,
    
   }
 
-  ## ----- 4. Write sim_data for this run -----
+  ##  4. Write sim_data for this run 
   
  
   for (s in seq_len(N)) {
@@ -299,7 +307,7 @@ run_one_sim <- function(T_obs, N = 100, p = 8,
     )
   }
 
-  ## ----- 5. Run GIMME -----
+  ##  5. Run GIMME 
 
   fit <- gimme(
     data        = "sim_data",
@@ -315,7 +323,7 @@ run_one_sim <- function(T_obs, N = 100, p = 8,
     standardize = TRUE
   )
 
-  ## ----- 6. Extract group-level estimated A and Phi -----
+  ##  6. Extract group-level estimated A and Phi 
   PCM <- as.matrix(read.csv(
     "sim_results/summaryPathCountsMatrix.csv",
     check.names = FALSE
@@ -338,7 +346,7 @@ run_one_sim <- function(T_obs, N = 100, p = 8,
   colnames(Phi_est) <- gsub("lag", "", colnames(Phi_counts))
   diag(A_est) <- 0
 
-  ## ----- 7. Compare true vs estimated (A and Phi) -----
+  ##  7. Compare true vs estimated (A and Phi) 
   resA  <- compare_mats(A_common,  A_est)
   resPhi <- compare_mats(Phi_common, Phi_est)
 
@@ -352,17 +360,29 @@ run_one_sim <- function(T_obs, N = 100, p = 8,
   resA$T_obs   <- T_obs
   resPhi$T_obs <- T_obs
 
-  rbind(resA, resPhi)
+  metrics<-rbind(resA, resPhi)
+   if (return_nets) {
+    # return both metrics and the actual matrices
+    return(list(
+      metrics    = metrics,
+      A_common   = A_common,
+      Phi_common = Phi_common,
+      A_est      = A_est,
+      Phi_est    = Phi_est
+    ))
+  } else {
+    return(metrics)
+  }
 }
+
+
 
 ```
 
 
 #3. Reproductive simulations
-```{r}
-library(dplyr)
-library(ggplot2)
 
+```{r}
 
 Ts <- c(50,150,300)
 R  <- 20                # repetitions per T
@@ -395,8 +415,12 @@ head(all_res)
 
 
 #4. Simulation Summary + Plots
+
+
+## 4.1 Summary Tables for A and $\Phi$
 ```{r}
-# summary for A (contemporaneous)
+# summary for A 
+
 summary_A <- all_res %>%
   dplyr::filter(matrix == "A") %>%
   dplyr::group_by(T_obs) %>%
@@ -426,6 +450,7 @@ summary_A <- all_res %>%
 
 summary_A
 
+# summary for Phi
 
 summary_Phi <- all_res %>%
   filter(matrix == "Phi") %>%
@@ -436,8 +461,11 @@ summary_Phi <- all_res %>%
     .groups = "drop"
   )
 summary_Phi
+```
 
+## 4.2 Plot for TPR vs T for A and $\Phi$
 
+```{r}
 ggplot() +
   geom_line(data = summary_A, aes(x = T_obs, y = mean_TPR, color = "A")) +
   geom_point(data = summary_A, aes(x = T_obs, y = mean_TPR, color = "A")) +
@@ -452,6 +480,8 @@ ggplot() +
   theme_minimal()
 
 ```
+
+## 4.3 Plot for A recovery across T
 
 ```{r}
 ggplot(summary_A, aes(x = T_obs, y = mean_TPR)) +
@@ -475,3 +505,152 @@ more systematic datasets (20 times, so 60 times in total) try n=100,
 T=50, n=100, T=150 n=100, T=200 replicate estimation 20 times
 
 TP,TN, FP, FN, Sensitivity, Specificity,... avg of those 20 runs
+
+
+## 4.3. network plot
+
+(One example network plot from each T=50,150,300.(One run from each T) Just for demonstration.)
+
+```{r}
+
+#### Getting one sample simulation from each T
+
+run_50  <- run_one_sim(T_obs = 50,  N = 100, p = 8,
+                       group_cutoff = 0.75,
+                       seed = 1050,
+                       burn_in = 100,
+                       return_nets = TRUE)
+
+run_150 <- run_one_sim(T_obs = 150, N = 100, p = 8,
+                       group_cutoff = 0.75,
+                       seed = 1150,
+                       burn_in = 100,
+                       return_nets = TRUE)
+
+run_300 <- run_one_sim(T_obs = 300, N = 100, p = 8,
+                       group_cutoff = 0.75,
+                       seed = 1300,
+                       burn_in = 100,
+                       return_nets = TRUE)
+```
+
+
+```{r}
+
+###### True vs. Estimated network for A ##########
+############# Network Plot ########################
+
+par(mfrow = c(2, 3))  
+
+##  T = 50, A matrices
+set.seed(1)
+layout_A50 <- qgraph(run_50$A_common,
+                     layout    = "spring",
+                     DoNotPlot = TRUE)$layout
+
+qgraph(run_50$A_common,
+       layout      = layout_A50,
+       edge.labels = TRUE,
+       title       = "True A, T = 50")
+
+qgraph(run_50$A_est,
+       layout      = layout_A50,
+       edge.labels = TRUE,
+       title       = "Estimated A, T = 50")
+
+##  T = 150, A matrices 
+set.seed(2)
+layout_A150 <- qgraph(run_150$A_common,
+                      layout    = "spring",
+                      DoNotPlot = TRUE)$layout
+
+qgraph(run_150$A_common,
+       layout      = layout_A150,
+       edge.labels = TRUE,
+       title       = "True A, T = 150")
+
+qgraph(run_150$A_est,
+       layout      = layout_A150,
+       edge.labels = TRUE,
+       title       = "Estimated A, T = 150")
+
+## T = 300, A matrices 
+set.seed(3)
+layout_A300 <- qgraph(run_300$A_common,
+                      layout    = "spring",
+                      DoNotPlot = TRUE)$layout
+
+qgraph(run_300$A_common,
+       layout      = layout_A300,
+       edge.labels = TRUE,
+       title       = "True A, T = 300")
+
+qgraph(run_300$A_est,
+       layout      = layout_A300,
+       edge.labels = TRUE,
+       title       = "Estimated A, T = 300")
+
+par(mfrow = c(1,1))  # reset
+
+```
+
+
+```{r}
+
+###### True vs. Estimated network for $\Phi$ #######
+############# Network Plot ########################
+
+par(mfrow = c(2, 3))
+
+##  T = 50, Phi 
+set.seed(4)
+layout_Phi50 <- qgraph(run_50$Phi_common,
+                       layout    = "spring",
+                       DoNotPlot = TRUE)$layout
+
+qgraph(run_50$Phi_common,
+       layout      = layout_Phi50,
+       edge.labels = TRUE,
+       title       = "True Phi, T = 50")
+
+qgraph(run_50$Phi_est,
+       layout      = layout_Phi50,
+       edge.labels = TRUE,
+       title       = "Estimated Phi, T = 50")
+
+##  T = 150, Phi 
+set.seed(5)
+layout_Phi150 <- qgraph(run_150$Phi_common,
+                        layout    = "spring",
+                        DoNotPlot = TRUE)$layout
+
+qgraph(run_150$Phi_common,
+       layout      = layout_Phi150,
+       edge.labels = TRUE,
+       title       = "True Phi, T = 150")
+
+qgraph(run_150$Phi_est,
+       layout      = layout_Phi150,
+       edge.labels = TRUE,
+       title       = "Estimated Phi, T = 150")
+
+##  T = 300, Phi
+set.seed(6)
+layout_Phi300 <- qgraph(run_300$Phi_common,
+                        layout    = "spring",
+                        DoNotPlot = TRUE)$layout
+
+qgraph(run_300$Phi_common,
+       layout      = layout_Phi300,
+       edge.labels = TRUE,
+       title       = "True Phi, T = 300")
+
+qgraph(run_300$Phi_est,
+       layout      = layout_Phi300,
+       edge.labels = TRUE,
+       title       = "Estimated Phi, T = 300")
+
+par(mfrow = c(1,1))
+
+```
+
