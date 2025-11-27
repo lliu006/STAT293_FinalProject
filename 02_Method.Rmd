@@ -59,6 +59,12 @@ for (tt in Ts) {# loop over T
 
 all_res <- do.call(rbind, all_res_list)
 head(all_res)
+
+if (!dir.exists("results")) dir.create("results")
+
+write.csv(all_res,
+          "results/all_results.csv",
+          row.names = FALSE)
 ```
 
 
@@ -136,6 +142,10 @@ ggplot() +
     title = "TPR vs T for A and Phi"
   ) +
   theme_minimal()
+ggsave("results/TPR_vs_T_A_Phi.png",
+       width = 7,
+       height = 5,
+       dpi = 300)
 
 ggplot(summary_A,
        aes(x = T_obs,
@@ -151,4 +161,8 @@ ggplot(summary_A,
     title = "Group-level recovery of contemporaneous edges (A) across T"
   ) +
   theme_minimal()
+ggsave("results/TPR_A_errorbars.png",
+       width = 7,
+       height = 5,
+       dpi = 300)
 ```
