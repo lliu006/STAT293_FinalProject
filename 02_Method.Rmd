@@ -1,0 +1,154 @@
+---
+title: "02_Method"
+date: "`r Sys.Date()`"
+output: pdf_document
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+# 1. Reproductive simualations
+
+## 1.1 Load previous simulated data and functions
+
+```{r}
+library(dplyr)
+library(ggplot2)
+
+# locate all simulation and GIMME functions
+source("01_DataSimulation.R")
+
+if (dir.exists("sim_data")) unlink("sim_data", recursive = TRUE)
+if (dir.exists("sim_results")) unlink("sim_results", recursive = TRUE)
+
+dir.create("sim_data", showWarnings = FALSE)
+dir.create("sim_results", showWarnings = FALSE)
+```
+
+```{r}
+Ts <- c(50, 150, 300)
+R <- 20 # repetitions per T
+
+all_res_list <- list()
+idx <- 1
+
+for (tt in Ts) {# loop over T
+  
+  for (rp in 1:R) {# loop over repetitions
+    
+    cat("Running T =", tt, "rep =", rp, "\n")
+    res <- run_one_sim(
+      T_obs = tt,
+      N = 100,
+      p = 8,
+      group_cutoff = 0.75,
+      seed = 1000 * tt + rp,
+      burn_in = 100
+    )
+    
+    res$rep <- rp
+    all_res_list[[idx]] <- res
+    idx <- idx + 1
+    
+  }
+  
+}
+
+all_res <- do.call(rbind, all_res_list)
+head(all_res)
+```
+
+
+# 2. Results
+
+## 2.1 Simulation summary
+
+```{r}
+# summary for A (contemporaneous)
+summary_A <- all_res %>%
+  dplyr::filter(matrix == "A") %>%
+  dplyr::group_by(T_obs) %>%
+  dplyr::summarise(
+    
+    mean_TPR = mean(sensitivity, na.rm = TRUE), # TPR
+    sd_TPR = sd(sensitivity, na.rm = TRUE),
+
+    mean_FPR = mean(FPR, na.rm = TRUE),
+    sd_FPR = sd(FPR, na.rm = TRUE),
+
+    mean_spec = mean(specificity, na.rm = TRUE),
+    sd_spec = sd(specificity, na.rm = TRUE),
+
+    # average counts of FP and FN
+    mean_FP = mean(FP, na.rm = TRUE),
+    sd_FP = sd(FP, na.rm = TRUE),
+
+    mean_FN = mean(FN, na.rm = TRUE),
+    sd_FN = sd(FN, na.rm = TRUE),
+
+    # false negative rate (FNR)
+    mean_FNR = mean(FN / (TP + FN), na.rm = TRUE),
+    sd_FNR = sd(FN / (TP + FN), na.rm = TRUE),
+
+    .groups = "drop"
+    
+  )
+summary_A
+
+summary_Phi <- all_res %>%
+  filter(matrix == "Phi") %>%
+  group_by(T_obs) %>%
+  summarise(
+    mean_TPR = mean(sensitivity, na.rm = TRUE),
+    sd_TPR = sd(sensitivity, na.rm = TRUE),
+    .groups = "drop"
+  )
+summary_Phi
+```
+
+## 2.2 Plots
+
+```{r}
+ggplot() +
+  geom_line(data = summary_A,
+            aes(x = T_obs,
+                y = mean_TPR,
+                color = "A")) +
+  geom_point(data = summary_A,
+             aes(x = T_obs,
+                 y = mean_TPR,
+                 color = "A")) +
+  geom_line(data = summary_Phi,
+            aes(x = T_obs,
+                y = mean_TPR,
+                color = "Phi")) +
+  geom_point(data = summary_Phi,
+             aes(x = T_obs,
+                 y = mean_TPR,
+                 color = "Phi")) +
+  labs(
+    x = "T",
+    y = "TPR",
+    color = "Matrix",
+    title = "TPR vs T for A and Phi"
+  ) +
+  theme_minimal()
+
+ggplot(summary_A,
+       aes(x = T_obs,
+           y = mean_TPR)) +
+  geom_line() +
+  geom_point(size = 3) +
+  geom_errorbar(aes(ymin = mean_TPR - sd_TPR,
+                    ymax = mean_TPR + sd_TPR),
+                width = 10) +
+  labs(
+    x = "T (time points per subject)",
+    y = "True Positive Rate (TPR) for A",
+    title = "Group-level recovery of contemporaneous edges (A) across T"
+  ) +
+  theme_minimal()
+```

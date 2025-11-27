@@ -69,7 +69,7 @@ generate_Psi_i <- function(A_i,
 }
 ```
 
-### Simulate one subject given $A_i$ and $\Phi_i$
+### 1.1.1 Simulate one subject given $A_i$ and $\Phi_i$
 
 $\eta_{t} = A_{i}\,\eta_{t} + \Phi_{i}\,\eta_{t-1} + \zeta_{t}$
 
@@ -317,6 +317,60 @@ run_one_sim <- function(T_obs,
     )
     
   }
+  
+  # run GIMME
+  fit <- gimme(
+    data = "sim_data",
+    out = "sim_results",
+    sep = "",
+    header = TRUE,
+    ar = TRUE,
+    plot = FALSE,
+    subgroup = FALSE,
+    paths = NULL,
+    groupcutoff = group_cutoff,
+    subcutoff   = .50,
+    standardize = TRUE
+  )
+
+  # extract group-level estimated A and Phi
+  PCM <- as.matrix(read.csv(
+    "sim_results/summaryPathCountsMatrix.csv",
+    check.names = FALSE
+  ))
+
+  p_mat <- nrow(PCM)
+  lag_cols <- grep("lag", colnames(PCM))
+  Phi_counts <- PCM[, lag_cols, drop = FALSE]
+  A_counts <- PCM[, -lag_cols, drop = FALSE]
+  N_subj <- max(PCM)
+
+  Phi_est <- (Phi_counts >= group_cutoff * N_subj)
+  A_est <- (A_counts >= group_cutoff * N_subj)
+  Phi_est <- +Phi_est
+  A_est <- +A_est
+
+  rownames(A_est) <- rownames(PCM)
+  colnames(A_est) <- gsub("lag", "", colnames(A_counts))
+  rownames(Phi_est) <- rownames(PCM)
+  colnames(Phi_est) <- gsub("lag", "", colnames(Phi_counts))
+  diag(A_est) <- 0
+
+  # compare true vs estimated (A and Phi)
+  resA <- compare_mats(A_common, A_est)
+  resPhi <- compare_mats(Phi_common, Phi_est)
+
+  # add FPR, matrix label, T, and rep placeholders
+  resA$FPR <- with(resA, FP / (FP + TN))
+  resPhi$FPR <- with(resPhi, FP / (FP + TN))
+
+  resA$matrix <- "A"
+  resPhi$matrix <- "Phi"
+
+  resA$T_obs <- T_obs
+  resPhi$T_obs <- T_obs
+
+  rbind(resA, resPhi)
   
 }
 ```
