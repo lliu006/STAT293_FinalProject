@@ -88,42 +88,76 @@ source("00_requirements.R")
 This will:
 - check R version,
 - install, if needed, and load required packages, and
-- create the directory structure `data/`, `data/simulated/`, `data/results/`, and `presentation/`.
+- create the directory structure `data/`, `data/simulated/`, and `data/results/`.
   
-### Simulate Data
+### Simulation Functions
 
 ```r
 source("01_DataSimulation.R")
 ```
 
-This will:
-- define the true group-level connectivity matrices (A, $\Phi$),
-- generate individual-level matrices with heterogeneity,
-- simulate multivariate time series for all subjects, and
-- save simulated datasets under `data/simulated/`.
+This files defines:
+- `generate_Psi_i()`,
+- `simulate_subject_total()`,
+- `generate_random_individual_edges()`,
+- `compare_mats()`, and
+- `run_one_sim()`
 
-### Run GIMME
+It does not produce any output on its own.
+
+### Full Simuation and GIMME Pipeline
 
 ```r
-source("11_Method1.R")
+knit("02_Method.Rmd")
 ```
 
-This will:
-- load the simulated data,
-- run the GIMME algorithm on all subjects,
-- write GIMME output and summaries under `data/results/`, and
-- may call helper functions defined in `12_Method1_aux.R`.
+This file:
+- clears/creates folders `sim_data/` and `sim_results/`,
+- runs 60 total simulations (3 T values $\times$ 20 reps each),
+- applies GIMME to each simulation,
+- extracts estimated A and $\Phi$ matrices,
+- computes accuracy metrics, and
+- saves all results into `results/all_results.csv` and also saves the diagnostic plots.
 
-### Expected Outcomes
+### Final Summary and Visualization
 
-Based on the simulation design, we expect:
-  - strong recovery of the main contemporaneous chain $X_1 \to X_2 \to X_3 \to X_4 \to X_5$,
-  - high detection of lagged autoregressive paths,
-  - recovery of lagged edges from $X_1 (t−1) \to X_2 (t)$ and $X_1 (t−1) \to X_3 (t)$, 
-  - identification of many individual-specific edges, and
-  - good overall model fit (low RMSEA, high CFI) for most subjects.
+```{r}
+knit("03_Analysis.Rmd")
+```
 
-Exact recovery rates vary slightly across runs but generally align with the behavior described in Gates & Molenaar (2012).
+This file:
+- loads `all_results.csv`,
+- computes summary tables for A and $\Phi$: TPR, FPR, TNR, FNR,
+- creates final figures `TPR_vs_T_A_Phi_analysis.png` and `TPR_A_errorbars_analysis.png`, and
+- creates network plots comparing True vs. Estimated A and $\Phi$ at T = 50, 150, 300 using `qgraph`.
+
+These visuals are used in the final report/presentation.
+
+## Quantitative Evaluation
+
+For each of the 60 replications, we compute:
+- TP, FP, FN, TN
+- Sensitivity (TPR)
+- Specificity
+- Precision
+- FPR
+- FNR
+
+We then average these metrics across 20 replications for each T value.
+
+Key trends observed:
+- Higher T improves recovery, especially for $\Phi$.
+- A (contemporaneous edges) is harder to detect at low T.
+- FPR decreases steadily as T increases.
+- GIMME consistently recovers the main group-level patterns.
+
+## Network Visualization
+
+Using `qgraph`, we plot:
+1. True vs. Estimated A networks for T = 50, 150, 300
+2. True vs Estimated $\Phi$ networks for T = 50, 150, 300
+
+These figures illustrate GIMME’s behavior visually, complementing quantitative accuracy.
 
 ## Citations
 
@@ -145,6 +179,6 @@ If referencing this work:
 
 - Dr. Jose Angel Sanchez Gomez for course instruction
 - Gates and Molenaar for foundational work
-- The developers of the `gimme` R package
+- The developers of `gimme`, `qgraph`, and `tidyverse`
 
 Last Updated: November 2025
