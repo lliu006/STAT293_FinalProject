@@ -83,7 +83,7 @@ This produces realistic subject-level variability similar to the original GIMME 
 ### Setup Environment
 
 ```r
-source("00_requirements.R")
+source("00_requirements.Rmd")
 ```
 
 This will:
@@ -123,7 +123,7 @@ This file:
 ### Final Summary and Visualization
 
 ```{r}
-knit("03_Example_and_Analysis.Rmd")
+knit("03_Exapmle_and_Analysis.Rmd")
 ```
 
 This file:
