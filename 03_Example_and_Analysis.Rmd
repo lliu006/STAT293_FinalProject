@@ -17,15 +17,21 @@ knitr::opts_chunk$set(echo = TRUE,
 ```{r}
 library(dplyr)
 library(ggplot2)
+library(qgraph)
 
-# ensure results folder exists
+# make sure results folder exists
 if (!dir.exists("results")) dir.create("results")
 ```
 
 ```{r}
 # load the csv created by 02_Method file
 all_res <- read.csv("results/all_results.csv")
+
+# load functions so run_one_sim() can be called for network plots
+source("01_DataSimulation.R")
 ```
+
+# 1. Summary tables
 
 ```{r}
 # summary for A (contemporaneous)
@@ -59,6 +65,7 @@ summary_A <- all_res %>%
   )
 summary_A
 
+# summary for Phi (lagged)
 summary_Phi <- all_res %>%
   dplyr::filter(matrix == "Phi") %>%
   dplyr::group_by(T_obs) %>%
@@ -70,8 +77,9 @@ summary_Phi <- all_res %>%
 summary_Phi
 ```
 
+# 2. TPR vs. T for A and Phi
+
 ```{r}
-# TPR vs. T for A and Phi
 p_tpr_both <- ggplot() +
   geom_line(data = summary_A,
             aes(x = T_obs,
@@ -97,14 +105,14 @@ p_tpr_both <- ggplot() +
     ) +
   theme_minimal()
 
-p_tpr_both
-
 ggsave("results/TPR_vs_T_A_Phi_analysis.png",
        plot = p_tpr_both,
        width = 7,
        height = 5,
        dpi = 300)
 ```
+
+# 3. A recovery across T
 
 ```{r}
 # TPR for A with error bars
@@ -123,11 +131,150 @@ p_tpr_A <- ggplot(summary_A,
     ) +
   theme_minimal()
 
-p_tpr_A
-
 ggsave("results/TPR_A_errorbars_analysis.png",
        plot = p_tpr_A,
        width = 7,
        height = 5,
        dpi = 300)
+```
+
+# 4. Network plots
+
+```{r}
+# getting one sample simulation from each T
+run_50  <- run_one_sim(T_obs = 50,
+                       N = 100,
+                       p = 8,
+                       group_cutoff = 0.75,
+                       seed = 1050,
+                       burn_in = 100,
+                       return_nets = TRUE)
+
+run_150 <- run_one_sim(T_obs = 150,
+                       N = 100,
+                       p = 8,
+                       group_cutoff = 0.75,
+                       seed = 1150,
+                       burn_in = 100,
+                       return_nets = TRUE)
+
+run_300 <- run_one_sim(T_obs = 300,
+                       N = 100,
+                       p = 8,
+                       group_cutoff = 0.75,
+                       seed = 1300,
+                       burn_in = 100,
+                       return_nets = TRUE)
+```
+
+## 4.1 True vs. estimated network for A
+
+```{r}
+par(mfrow = c(2, 3))  
+
+# T = 50, A matrices
+set.seed(1)
+layout_A50 <- qgraph(run_50$A_common,
+                     layout = "spring",
+                     DoNotPlot = TRUE)$layout
+
+qgraph(run_50$A_common,
+       layout = layout_A50,
+       edge.labels = TRUE,
+       title = "True A, T = 50")
+
+qgraph(run_50$A_est,
+       layout = layout_A50,
+       edge.labels = TRUE,
+       title = "Estimated A, T = 50")
+
+#  T = 150, A matrices 
+set.seed(2)
+layout_A150 <- qgraph(run_150$A_common,
+                      layout = "spring",
+                      DoNotPlot = TRUE)$layout
+
+qgraph(run_150$A_common,
+       layout = layout_A150,
+       edge.labels = TRUE,
+       title = "True A, T = 150")
+
+qgraph(run_150$A_est,
+       layout = layout_A150,
+       edge.labels = TRUE,
+       title = "Estimated A, T = 150")
+
+# T = 300, A matrices 
+set.seed(3)
+layout_A300 <- qgraph(run_300$A_common,
+                      layout = "spring",
+                      DoNotPlot = TRUE)$layout
+
+qgraph(run_300$A_common,
+       layout = layout_A300,
+       edge.labels = TRUE,
+       title = "True A, T = 300")
+
+qgraph(run_300$A_est,
+       layout = layout_A300,
+       edge.labels = TRUE,
+       title = "Estimated A, T = 300")
+
+par(mfrow = c(1,1))  # reset
+```
+
+## 4.2 True vs. estimated network for $\Phi$
+
+```{r}
+par(mfrow = c(2, 3))
+
+# T = 50, Phi 
+set.seed(4)
+layout_Phi50 <- qgraph(run_50$Phi_common,
+                       layout = "spring",
+                       DoNotPlot = TRUE)$layout
+
+qgraph(run_50$Phi_common,
+       layout = layout_Phi50,
+       edge.labels = TRUE,
+       title = "True Phi, T = 50")
+
+qgraph(run_50$Phi_est,
+       layout = layout_Phi50,
+       edge.labels = TRUE,
+       title = "Estimated Phi, T = 50")
+
+# T = 150, Phi 
+set.seed(5)
+layout_Phi150 <- qgraph(run_150$Phi_common,
+                        layout = "spring",
+                        DoNotPlot = TRUE)$layout
+
+qgraph(run_150$Phi_common,
+       layout = layout_Phi150,
+       edge.labels = TRUE,
+       title = "True Phi, T = 150")
+
+qgraph(run_150$Phi_est,
+       layout = layout_Phi150,
+       edge.labels = TRUE,
+       title = "Estimated Phi, T = 150")
+
+# T = 300, Phi
+set.seed(6)
+layout_Phi300 <- qgraph(run_300$Phi_common,
+                        layout = "spring",
+                        DoNotPlot = TRUE)$layout
+
+qgraph(run_300$Phi_common,
+       layout = layout_Phi300,
+       edge.labels = TRUE,
+       title = "True Phi, T = 300")
+
+qgraph(run_300$Phi_est,
+       layout = layout_Phi300,
+       edge.labels = TRUE,
+       title = "Estimated Phi, T = 300")
+
+par(mfrow = c(1,1)) # reset
 ```
