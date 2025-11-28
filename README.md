@@ -34,22 +34,25 @@ across a range of time-series lengths (T = 50, 150, 300) and 20 replications per
 This is the actual foldr and file layout used in this project:
 
 ```text
-├── README.md                   # Project description and workflow
+├── README.md                     # Project description and workflow
 │
-├── 01_DataSimulation.R         # All helper functions (A, Phi, Psi generation; uSEM simulation)
-├── 02_Method.Rmd               # Runs all simulations and 60 GIMME replications
-├── 03_Example_and_Analysis.Rmd    # Loads results and creates final summary tables and plots
+├── 01_DataSimulation.R           # All helper functions, singl-run simullation, and GIMME wrapper
+├── 02_Method.Rmd                 # Runs all simulations and writes combine results
+├── 03_Example_and_Analysis.Rmd   # Loads results and creates final summary tables and plots
 │
-├── sim_data/                   # Auto-generated simulated time series (100 .txt files per run)
-├── sim_results/                # Auto-generated GIMME output (path counts, plots, model files)
-├── results/                    # Combined metrics and saved figures
+├── sim_data/                     # Auto-generated simulated time series (100 .txt files per run)
+├── sim_results/                  # Auto-generated GIMME output (path counts, plots, model files)
+├── results/                      # Combined metrics and saved figures
 │   ├── all_results.csv
-│   ├── TPR_vs_T_A_Phi.png
-│   ├── TPR_A_errorbars.png
-│   ├── TPR_vs_T_A_Phi_analysis.png
-│   └── TPR_A_errorbars_analysis.png
+│   ├── TPR_vs_T_A_Phi.png             
+│   ├── TPR_A_errorbars.png            
+│   ├── TPR_vs_T_A_Phi_analysis.png     
+│   ├── TPR_A_errorbars_analysis.png   
+│   └── network plot figures
 │
-└── STAT293_FinalProject.Rproj  # RStudio project file
+├── GIMME_Full_Code.Rmd           # GIMME code in its entirety
+|
+└── STAT293_FinalProject.Rproj    # RStudio project file
 ```
 
 ## Simulation Summary
@@ -95,13 +98,13 @@ source("01_DataSimulation.R")
 ```
 
 This files defines:
-- `generate_Psi_i()`,
-- `simulate_subject_total()`,
-- `generate_random_individual_edges()`,
-- `compare_mats()`, and
-- `run_one_sim()`
+- `generate_Psi_i()`: uilds subject-specific noise covariance matrices $\Psi_i$,
+- `simulate_subject_total()`: simulates multivariate time series given $A_i$, $\Phi_i$, and $\Psi_i$,
+- `generate_random_individual_edges()`: adds subject-specific edges to a group-level matrix,
+- `compare_mats()`: computes TP, FP, FN, TN and derived accuracy metrics, and
+- `run_one_sim()`: one complete simulation and GIMME run for a given4 $T_{obs}$, returning performance metrics.
 
-It does not produce any output on its own.
+This script does not produce files by itself. It just defines the functions.
 
 ### Full Simuation and GIMME Pipeline
 
@@ -110,25 +113,24 @@ knit("02_Method.Rmd")
 ```
 
 This file:
+- sources `01_DataSimulation.R`,
 - clears/creates folders `sim_data/` and `sim_results/`,
 - runs 60 total simulations (3 T values $\times$ 20 reps each),
-- applies GIMME to each simulation,
-- extracts estimated A and $\Phi$ matrices,
-- computes accuracy metrics, and
-- saves all results into `results/all_results.csv` and also saves the diagnostic plots.
+- calls `run_one_sim()` for each setting,
+- combines the metrics into a single `all_res` data frame, and
+- writes the combined metrics to `results/all_results.csv`.
 
 ### Final Summary and Visualization
 
 ```{r}
-knit("03_Analysis.Rmd")
+knit("03_Example_and_Analysis.Rmd")
 ```
 
 This file:
-- loads `all_results.csv`,
-- computes summary tables for A and $\Phi$: TPR, FPR, TNR, FNR,
+- loads `all_res.csv` from the `results/` folder,
+- computes summary tables for A and $\Phi$ (TPR, FPR, specificity, etc.),
 - creates final figures `TPR_vs_T_A_Phi_analysis.png` and `TPR_A_errorbars_analysis.png`, and
-- creates network plots comparing True vs. Estimated A and $\Phi$ at T = 50, 150, 300 using `qgraph`.
-
+- generates network plots using `qgraph`, comparing true vs. estimated A and $\Phi$ matrices at T = 50, 150, 300.
 These visuals are used in the final report/presentation.
 
 ## Quantitative Evaluation
