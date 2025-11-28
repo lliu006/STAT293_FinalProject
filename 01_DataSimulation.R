@@ -1,11 +1,5 @@
 library(MASS)
 library(gimme)
-if (dir.exists("sim_data")) unlink("sim_data", recursive = TRUE)
-if (dir.exists("sim_results")) unlink("sim_results", recursive = TRUE)
-
-dir.create("sim_data", showWarnings = FALSE)
-dir.create("sim_results", showWarnings = FALSE)
-
 
 # 1. Helper functions
 
