@@ -37,10 +37,8 @@ This is the actual foldr and file layout used in this project:
 ├── README.md                   # Project description and workflow
 │
 ├── 01_DataSimulation.R         # All helper functions (A, Phi, Psi generation; uSEM simulation)
-├── 01_DataSimulation.Rmd       # Narrative explanation of the simulation design
-│
 ├── 02_Method.Rmd               # Runs all simulations and 60 GIMME replications
-├── 03_Analysis.Rmd             # Loads results and creates final summary tables and plots
+├── 03_Example_and_Analysis.Rmd    # Loads results and creates final summary tables and plots
 │
 ├── sim_data/                   # Auto-generated simulated time series (100 .txt files per run)
 ├── sim_results/                # Auto-generated GIMME output (path counts, plots, model files)
