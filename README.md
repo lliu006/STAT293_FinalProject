@@ -123,7 +123,7 @@ This file:
 ### Final Summary and Visualization
 
 ```r
-knit("02_Example_and_Analysis.Rmd")
+knit("03_Example_and_Analysis.Rmd")
 ```
 
 This file:
