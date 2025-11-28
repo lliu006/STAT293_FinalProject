@@ -1,7 +1,6 @@
 ---
 title: "STAT293_GIMME"
 author: "Yijia Xue"
-date: "2025-11-21"
 output: pdf_document
 editor_options: 
   markdown: 
