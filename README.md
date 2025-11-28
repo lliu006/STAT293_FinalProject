@@ -122,8 +122,8 @@ This file:
 
 ### Final Summary and Visualization
 
-```{r}
-knit("03_Exapmle_and_Analysis.Rmd")
+```r
+knit("02_Example_and_Analysis.Rmd")
 ```
 
 This file:
