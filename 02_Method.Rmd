@@ -6,7 +6,7 @@ output: pdf_document
 
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
 ```
 
 
@@ -21,14 +21,17 @@ library(ggplot2)
 # locate all simulation and GIMME functions
 source("01_DataSimulation.R")
 
+# clean old simulation folders, if any
 if (dir.exists("sim_data")) unlink("sim_data", recursive = TRUE)
 if (dir.exists("sim_results")) unlink("sim_results", recursive = TRUE)
 
+# recreate folders by gimme()
 dir.create("sim_data", showWarnings = FALSE)
 dir.create("sim_results", showWarnings = FALSE)
 ```
 
 ```{r}
+# run simulation across T and replications
 Ts <- c(50, 150, 300)
 R <- 20 # repetitions per T
 
@@ -60,109 +63,9 @@ for (tt in Ts) {# loop over T
 all_res <- do.call(rbind, all_res_list)
 head(all_res)
 
+# save combined results
 if (!dir.exists("results")) dir.create("results")
-
 write.csv(all_res,
           "results/all_results.csv",
           row.names = FALSE)
-```
-
-
-# 2. Results
-
-## 2.1 Simulation summary
-
-```{r}
-# summary for A (contemporaneous)
-summary_A <- all_res %>%
-  dplyr::filter(matrix == "A") %>%
-  dplyr::group_by(T_obs) %>%
-  dplyr::summarise(
-    
-    mean_TPR = mean(sensitivity, na.rm = TRUE), # TPR
-    sd_TPR = sd(sensitivity, na.rm = TRUE),
-
-    mean_FPR = mean(FPR, na.rm = TRUE),
-    sd_FPR = sd(FPR, na.rm = TRUE),
-
-    mean_spec = mean(specificity, na.rm = TRUE),
-    sd_spec = sd(specificity, na.rm = TRUE),
-
-    # average counts of FP and FN
-    mean_FP = mean(FP, na.rm = TRUE),
-    sd_FP = sd(FP, na.rm = TRUE),
-
-    mean_FN = mean(FN, na.rm = TRUE),
-    sd_FN = sd(FN, na.rm = TRUE),
-
-    # false negative rate (FNR)
-    mean_FNR = mean(FN / (TP + FN), na.rm = TRUE),
-    sd_FNR = sd(FN / (TP + FN), na.rm = TRUE),
-
-    .groups = "drop"
-    
-  )
-summary_A
-
-summary_Phi <- all_res %>%
-  filter(matrix == "Phi") %>%
-  group_by(T_obs) %>%
-  summarise(
-    mean_TPR = mean(sensitivity, na.rm = TRUE),
-    sd_TPR = sd(sensitivity, na.rm = TRUE),
-    .groups = "drop"
-  )
-summary_Phi
-```
-
-## 2.2 Plots
-
-```{r}
-ggplot() +
-  geom_line(data = summary_A,
-            aes(x = T_obs,
-                y = mean_TPR,
-                color = "A")) +
-  geom_point(data = summary_A,
-             aes(x = T_obs,
-                 y = mean_TPR,
-                 color = "A")) +
-  geom_line(data = summary_Phi,
-            aes(x = T_obs,
-                y = mean_TPR,
-                color = "Phi")) +
-  geom_point(data = summary_Phi,
-             aes(x = T_obs,
-                 y = mean_TPR,
-                 color = "Phi")) +
-  labs(
-    x = "T",
-    y = "TPR",
-    color = "Matrix",
-    title = "TPR vs T for A and Phi"
-  ) +
-  theme_minimal()
-ggsave("results/TPR_vs_T_A_Phi.png",
-       width = 7,
-       height = 5,
-       dpi = 300)
-
-ggplot(summary_A,
-       aes(x = T_obs,
-           y = mean_TPR)) +
-  geom_line() +
-  geom_point(size = 3) +
-  geom_errorbar(aes(ymin = mean_TPR - sd_TPR,
-                    ymax = mean_TPR + sd_TPR),
-                width = 10) +
-  labs(
-    x = "T (time points per subject)",
-    y = "True Positive Rate (TPR) for A",
-    title = "Group-level recovery of contemporaneous edges (A) across T"
-  ) +
-  theme_minimal()
-ggsave("results/TPR_A_errorbars.png",
-       width = 7,
-       height = 5,
-       dpi = 300)
 ```
