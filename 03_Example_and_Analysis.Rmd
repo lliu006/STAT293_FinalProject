@@ -1,5 +1,5 @@
 ---
-title: "03_AnalysisExamples"
+title: "03_Example_and_Analysis"
 date: "`r Sys.Date()`"
 output: pdf_document
 ---

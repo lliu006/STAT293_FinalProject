@@ -1,10 +1,9 @@
 library(MASS)
 library(gimme)
 
-# 1. Helper functions
+# 1. Helper functions 
 
-## 1.1 Generate $\Psi_i$
-
+## 1.1 Generate Psi_i (covariance of white noise)
 generate_Psi_i <- function(A_i,
                            min_k = 1,
                            max_k = 4,
@@ -15,11 +14,9 @@ generate_Psi_i <- function(A_i,
   p <- nrow(A_i)
   Psi <- diag(base_var, p, p)
   
-  # candidate off-diagonal positions where A_i has zero and use only i < j to
-  # enforce symmetry
-  candidates <- which(A_i == 0,
-                      arr.ind = TRUE)
-  candidates <- candidates[candidates[,1] < candidates[,2], , drop = FALSE]
+  # candidate off-diagonal positions where A_i has zero and use only i < j
+  candidates <- which(A_i == 0, arr.ind = TRUE)
+  candidates <- candidates[candidates[, 1] < candidates[, 2], , drop = FALSE]
   if (nrow(candidates) == 0) return(Psi)
   
   k <- sample(min_k:max_k, 1)
@@ -44,31 +41,23 @@ generate_Psi_i <- function(A_i,
   }
   
   return(Psi)
-  
 }
 
-## 1.2 Simulate $\eta_i$
-      
+## 1.2 Simulate eta_i over time
 simulate_subject_total <- function(T_total, A, Phi, Psi) {
-      
+  
   p <- nrow(A)
-  # TOTAL <- T_obs+ burn_in
-  X <- matrix(NA,
-              nrow = T_total,
-              ncol = p)
+  X <- matrix(NA, nrow = T_total, ncol = p)
   colnames(X) <- paste0("X", 1:p)
   
-  # initial state eta_1 ~ N(0, I)
+  # initial state eta_1
   X[1, ] <- runif(p, min = 0, max = 0.5)
   
   # (I - A)^(-1)
   M <- solve(diag(p) - A)
   
   for (t in 2:T_total) {
-    # Sigma_safe <- Psi + 1e-4 * diag(p)
-    zeta_t <- mvrnorm(1,
-                      mu = rep(0, p),
-                      Sigma = Psi) # zeta is the white noise
+    zeta_t <- mvrnorm(1, mu = rep(0, p), Sigma = Psi)
     X[t, ] <- M %*% (Phi %*% X[t - 1, ] + zeta_t)
   }
   
@@ -77,22 +66,18 @@ simulate_subject_total <- function(T_total, A, Phi, Psi) {
 }
 
 ## 1.3 Random K generator
-
 random_k <- function(min_k, max_k) {
-  
   if (max_k <= 0) return(0L)
   sample(min_k:max_k, size = 1)
-  
 }
 
 ## 1.4 Random individual edges generator
-
 generate_random_individual_edges <- function(M_common,
                                              min_k = 0,
                                              max_k = 4,
                                              low = 0.03,
                                              high = 0.15,
-                                             allow_diag = FALSE){
+                                             allow_diag = FALSE) {
   
   p <- nrow(M_common)
   M <- M_common
@@ -102,40 +87,35 @@ generate_random_individual_edges <- function(M_common,
   if (k_indiv == 0) return(M)
   
   # find eligible positions; cannot overwrite group edges
-  possible <- which(M_common == 0,
-                    arr.ind = TRUE)
+  possible <- which(M_common == 0, arr.ind = TRUE)
   
   # optionally remove diagonal
   if (!allow_diag) {
-    possible <- possible[possible[,1] != possible[,2], , drop = FALSE]
+    possible <- possible[possible[, 1] != possible[, 2], , drop = FALSE]
   }
   if (nrow(possible) == 0) return(M)
+  
   # safety: cannot choose more edges than exist
-  k_indiv <- min(k_indiv,
-                 nrow(possible))
+  k_indiv <- min(k_indiv, nrow(possible))
   
   # randomly select k edges
-  idx <- sample(seq_len(nrow(possible)),
-                size = k_indiv,
-                replace = FALSE)
+  idx <- sample(seq_len(nrow(possible)), size = k_indiv, replace = FALSE)
   chosen <- possible[idx, , drop = FALSE]
   
   # fill with random values
   for (j in seq_len(nrow(chosen))) {
     to <- chosen[j, 1]
     from <- chosen[j, 2]
-    M[to, from] <- runif(1,low,high)
+    M[to, from] <- runif(1, low, high)
   }
   
   # ensure no diagonals for A
   if (!allow_diag) diag(M) <- diag(M_common)
   
   M
-  
 }
 
 ## 1.5 Matrix comparison function
-
 compare_mats <- function(M_true, M_est, tol = 1e-8) {
   
   # treat any nonzero entry as an edge
@@ -156,47 +136,40 @@ compare_mats <- function(M_true, M_est, tol = 1e-8) {
     specificity = ifelse((TN + FP) == 0, NA, TN / (TN + FP)),
     precision = ifelse((TP + FP) == 0, NA, TP / (TP + FP))
   )
-  
 }
 
-
-# 2. One simulation loop
+# 2. One simulation and GIMME run 
 
 run_one_sim <- function(T_obs,
                         N = 100,
                         p = 8,
                         group_cutoff = 0.65,
                         seed = NULL,
-                        burn_in = 100){
+                        burn_in = 100,
+                        return_nets = FALSE) {
   
-  # if (is.null(burn_in)) burn_in <- 0
   if (!is.null(seed)) set.seed(seed)
-  
   T_total <- T_obs + burn_in
   
-  # define group-level A_common
+  # 2.1 define group-level A_common
   A_common <- matrix(0, p, p)
   for (j in 1:(p - 1)) {
     A_common[j + 1, j] <- runif(1, 0.2, 0.35)
   }
   diag(A_common) <- 0
   
-  # define group-level Phi_common
+  # 2.2 define group-level Phi_common
   Phi_common <- matrix(0, p, p)
-  diag(Phi_common) <- runif(p,
-                            min = 0.1,
-                            max = 0.2)
+  diag(Phi_common) <- runif(p, min = 0.1, max = 0.2)
   
   # first off-diagonal band
   for (j in 1:(p - 1)) {
     Phi_common[j + 1, j] <- runif(1, 0.2, 0.3)
   }
-  
   # second off-diagonal band
   for (j in 1:(p - 2)) {
     Phi_common[j + 2, j] <- runif(1, 0.1, 0.2)
   }
-  
   # a few extra random group edges
   extra_edges <- 3
   for (k in 1:extra_edges) {
@@ -205,14 +178,13 @@ run_one_sim <- function(T_obs,
     Phi_common[r, c] <- runif(1, 0.03, 0.08)
   }
   
-  # simulate N subjects
+  # 2.3 simulate N subjects
   A_list <- vector("list", N)
   Phi_list <- vector("list", N)
   Psi_list <- vector("list", N)
   X_list <- vector("list", N)
   
   for (s in 1:N) {
-    
     # A_i: contemporaneous, no diag, few individual edges
     A_i <- generate_random_individual_edges(
       M_common = A_common,
@@ -252,7 +224,7 @@ run_one_sim <- function(T_obs,
       high_cov = 0.05
     )
     
-    A_list[[s]] <- A_i
+    A_list[[s]]   <- A_i
     Phi_list[[s]] <- Phi_i
     Psi_list[[s]] <- Psi_i
     
@@ -267,11 +239,9 @@ run_one_sim <- function(T_obs,
     
   }
   
-  # write sim_data for this run
+  # 2.4 write sim_data for this run
   for (s in seq_len(N)) {
-    
-    fname <- file.path("sim_data",
-                       paste0("sub", s, ".txt"))
+    fname <- file.path("sim_data", paste0("sub", s, ".txt"))
     write.table(
       X_list[[s]],
       file = fname,
@@ -279,10 +249,9 @@ run_one_sim <- function(T_obs,
       col.names = TRUE,
       sep = " "
     )
-    
   }
   
-  # run GIMME
+  # 2.5 run GIMME
   fit <- gimme(
     data = "sim_data",
     out = "sim_results",
@@ -293,17 +262,16 @@ run_one_sim <- function(T_obs,
     subgroup = FALSE,
     paths = NULL,
     groupcutoff = group_cutoff,
-    subcutoff   = .50,
+    subcutoff = .50,
     standardize = TRUE
   )
   
-  # extract group-level estimated A and Phi
+  # 2.6 extract group-level estimated A and Phi
   PCM <- as.matrix(read.csv(
     "sim_results/summaryPathCountsMatrix.csv",
     check.names = FALSE
   ))
   
-  p_mat <- nrow(PCM)
   lag_cols <- grep("lag", colnames(PCM))
   Phi_counts <- PCM[, lag_cols, drop = FALSE]
   A_counts <- PCM[, -lag_cols, drop = FALSE]
@@ -320,11 +288,11 @@ run_one_sim <- function(T_obs,
   colnames(Phi_est) <- gsub("lag", "", colnames(Phi_counts))
   diag(A_est) <- 0
   
-  # compare true vs estimated (A and Phi)
-  resA <- compare_mats(A_common, A_est)
+  # 2.7 compare true vs estimated (A and Phi)
+  resA  <- compare_mats(A_common, A_est)
   resPhi <- compare_mats(Phi_common, Phi_est)
   
-  # add FPR, matrix label, T, and rep placeholders
+  # add FPR, matrix label, and T
   resA$FPR <- with(resA, FP / (FP + TN))
   resPhi$FPR <- with(resPhi, FP / (FP + TN))
   
@@ -334,6 +302,19 @@ run_one_sim <- function(T_obs,
   resA$T_obs <- T_obs
   resPhi$T_obs <- T_obs
   
-  rbind(resA, resPhi)
+  metrics <- rbind(resA, resPhi)
+  
+  if (return_nets) {
+    # return both metrics and the actual matrices
+    return(list(
+      metrics = metrics,
+      A_common = A_common,
+      Phi_common = Phi_common,
+      A_est = A_est,
+      Phi_est = Phi_est
+    ))
+  } else {
+    return(metrics)
+  }
   
 }
