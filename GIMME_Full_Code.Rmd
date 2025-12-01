@@ -498,13 +498,6 @@ ggplot(summary_A, aes(x = T_obs, y = mean_TPR)) +
 
 ```
 
-1/3 talking about model, 1/3 what we accessed
-
-more systematic datasets (20 times, so 60 times in total) try n=100,
-T=50, n=100, T=150 n=100, T=200 replicate estimation 20 times
-
-TP,TN, FP, FN, Sensitivity, Specificity,... avg of those 20 runs
-
 
 ## 4.3. network plot
 
