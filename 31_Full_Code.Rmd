@@ -1,5 +1,5 @@
 ---
-title: "STAT293_GIMME"
+title: "31_Full_Code"
 author: "Yijia Xue"
 output: pdf_document
 editor_options: 
