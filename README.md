@@ -52,10 +52,10 @@ This is the actual foldr and file layout used in this project:
 │   └── network plot figures
 |
 ├── STAT293_FinalProject.Rproj                 # RStudio project file
-├── STAT_293_Final_Project_Presentation.zip    # Prensetation source file
 ├── STAT_293_Final_Project_Presentation.pdf    # Compiled presentation PDF
-├── STAT_293_Final_Project_Report.tex          # Report source file    
-└── STAT_293_Final_Project_Report.pdf          # Compiled report PDF           
+├── STAT_293_Final_Project_Presentation.zip    # Prensetation source files
+├── STAT_293_Final_Project_Report.pdf          # Compiled report PDF 
+└── STAT_293_Final_Project_Report.tex          # Report source file        
 ```
 
 ## Simulation Summary
