@@ -37,8 +37,9 @@ This is the actual foldr and file layout used in this project:
 ├── README.md                     # Project description and workflow
 │
 ├── 01_DataSimulation.R           # All helper functions, singl-run simullation, and GIMME wrapper
-├── 02_Method.Rmd                 # Runs all simulations and writes combine results
-├── 03_Example_and_Analysis.Rmd   # Loads results and creates final summary tables and plots
+├── 11_Method.Rmd                 # Runs all simulations and writes combine results
+├── 21_Example_and_Analysis.Rmd   # Loads results and creates final summary tables and plots
+├── 31_Full_Code.Rmd              # GIMME code in its entirety
 │
 ├── sim_data/                     # Auto-generated simulated time series (100 .txt files per run)
 ├── sim_results/                  # Auto-generated GIMME output (path counts, plots, model files)
@@ -49,8 +50,6 @@ This is the actual foldr and file layout used in this project:
 │   ├── TPR_vs_T_A_Phi_analysis.png     
 │   ├── TPR_A_errorbars_analysis.png   
 │   └── network plot figures
-│
-├── GIMME_Full_Code.Rmd           # GIMME code in its entirety
 |
 └── STAT293_FinalProject.Rproj    # RStudio project file
 ```
@@ -109,7 +108,7 @@ This script does not produce files by itself. It just defines the functions.
 ### Full Simuation and GIMME Pipeline
 
 ```r
-knit("02_Method.Rmd")
+knit("11_Method.Rmd")
 ```
 
 This file:
@@ -123,7 +122,7 @@ This file:
 ### Final Summary and Visualization
 
 ```r
-knit("03_Example_and_Analysis.Rmd")
+knit("21_Example_and_Analysis.Rmd")
 ```
 
 This file:
@@ -181,4 +180,4 @@ If referencing this work:
 - Gates and Molenaar for foundational work
 - The developers of `gimme`, `qgraph`, and `tidyverse`
 
-Last Updated: November 2025
+Last Updated: December 2025
