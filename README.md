@@ -34,16 +34,16 @@ across a range of time-series lengths (T = 50, 150, 300) and 20 replications per
 This is the actual foldr and file layout used in this project:
 
 ```text
-├── README.md                     # Project description and workflow
+├── README.md                                 # Project description and workflow
 │
-├── 01_DataSimulation.R           # All helper functions, singl-run simullation, and GIMME wrapper
-├── 11_Method.Rmd                 # Runs all simulations and writes combine results
-├── 21_Example_and_Analysis.Rmd   # Loads results and creates final summary tables and plots
-├── 31_Full_Code.Rmd              # GIMME code in its entirety
+├── 01_DataSimulation.R                       # All helper functions, singl-run simullation, and GIMME wrapper
+├── 11_Method.Rmd                             # Runs all simulations and writes combine results
+├── 21_Example_and_Analysis.Rmd               # Loads results and creates final summary tables and plots
+├── 31_Full_Code.Rmd                          # GIMME code in its entirety
 │
-├── sim_data/                     # Auto-generated simulated time series (100 .txt files per run)
-├── sim_results/                  # Auto-generated GIMME output (path counts, plots, model files)
-├── results/                      # Combined metrics and saved figures
+├── sim_data/                                 # Auto-generated simulated time series (100 .txt files per run)
+├── sim_results/                              # Auto-generated GIMME output (path counts, plots, model files)
+├── results/                                  # Combined metrics and saved figures
 │   ├── all_results.csv
 │   ├── TPR_vs_T_A_Phi.png             
 │   ├── TPR_A_errorbars.png            
@@ -51,7 +51,11 @@ This is the actual foldr and file layout used in this project:
 │   ├── TPR_A_errorbars_analysis.png   
 │   └── network plot figures
 |
-└── STAT293_FinalProject.Rproj    # RStudio project file
+├── STAT293_FinalProject.Rproj                 # RStudio project file
+├── STAT_293_Final_Project_Presentation.zip    # Prensetation source file
+├── STAT_293_Final_Project_Presentation.pdf    # Compiled presentation PDF
+├── STAT_293_Final_Project_Report.tex          # Report source file    
+└── STAT_293_Final_Project_Report.pdf          # Compiled report PDF           
 ```
 
 ## Simulation Summary
