@@ -1,0 +1,360 @@
+\documentclass[paper=a4, fontsize=11pt]{scrartcl}
+\usepackage[T1]{fontenc}
+\usepackage{fourier}
+
+\usepackage[english]{babel}		
+\usepackage[protrusion=true,expansion=true]{microtype}	
+\usepackage{amsmath,amsfonts,amsthm} % Math packages
+\usepackage[pdftex]{graphicx}
+\usepackage{blindtext}
+\usepackage{hyperref}
+\usepackage{url}
+\usepackage{array} % required for text wrapping in tables
+
+\usepackage{sectsty}
+\allsectionsfont{\centering \normalfont\scshape}
+
+\usepackage{fancyhdr}
+\pagestyle{fancyplain}
+\fancyhead{}											% No page header
+\fancyfoot[L]{}											% Empty 
+\fancyfoot[C]{}											% Empty
+\fancyfoot[R]{\thepage}									% Pagenumbering
+\renewcommand{\headrulewidth}{0pt}			% Remove header underlines
+\renewcommand{\footrulewidth}{0pt}				% Remove footer underlines
+\setlength{\headheight}{13.6pt}
+
+\numberwithin{equation}{section}		% Equationnumbering: section.eq#
+\numberwithin{figure}{section}			% Figurenumbering: section.fig#
+\numberwithin{table}{section}				% Tablenumbering: section.tab#
+
+\newcommand{\horrule}[1]{\rule{\linewidth}{#1}} 	% Horizontal rule
+
+\title{
+		%\vspace{-1in} 	
+		\usefont{OT1}{bch}{b}{n}
+		\normalfont \normalsize \textsc{University of California, Riverside} \\ [25pt]
+		\horrule{0.5pt} \\[0.4cm]
+		\huge Evaluating Group-Level Recovery of Contemporaneous and Lagged Connectivity in GIMME: A Simulation Study \\
+		\horrule{2pt} \\[0.5cm]
+}
+\author{
+		\normalfont 								\normalsize
+        Yijia Xue and Linlin Liu \\[-3pt]		\normalsize
+        \today
+}
+\date{}
+
+
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+\noindent
+Group Iterative Multiple Model Estimation (GIMME) is a unified structural equation modeling framework that estimates directed connectivity networks at both the group and individual level. This project uses simulations to examine how the number of observations per subject ($T$) affects group-level recovery of contemporaneous edges ($A$) and lagged edges ($\Phi$). We generated multivariate time series for $N = 100$ subjects with $p = 8$ nodes under a known uSEM model and applied GIMME for $T \in \{50, 150, 300\}$, repeating each condition 20 times. Performance was summarized with sensitivity (TPR) and false positive rate (FPR) for the estimated group-level $A$ and $\Phi$ matrices. GIMME recovered contemporaneous edges well when time series were moderately long. Mean TPR for $A$ increased from $0.00$ at $T = 50$ to $0.67$ at $T = 150$ and $0.94$ at $T = 300$, with FPR close to zero across all $T$. Lagged edges were more difficult to detect, with TPR for $\Phi$ rising only from about $0.35$ to $0.58$ over the same range. Overall, the study suggests that reliable group-level estimation of contemporaneous connectivity with GIMME requires at least 150--300 time points per subject, while lagged connections remain harder to estimate accurately. 
+\end{abstract}
+
+\section{Introduction}
+
+The broad statistical problem motivating this project is the challenge of estimating directed connectivity networks from multivariate time-series data. In fields such as neuroscience, psychology, and biomedicine, researchers seek to understand how activity in one process influences activity in another either within the same time point or across time. For example, in functional MRI studies, identifying directed interactions among brain regions is essential for understanding cognitive processes and neural organization. Traditional group-level approaches often aggregate data across subjects and assume a single "average" connectivity network, which can obscure important individual differences and lead to misleading conclusions when the underlying structure varies across participants. \\
+
+\noindent
+Group Iterative Multiple Model Estimation (GIMME) is designed to address this limitation by combining group-level and individual-level modeling within a unified structural equation modeling (uSEM) framework. The algorithm first identifies connections that consistently improve model fit across a large proportion of subjects and treats these as group-level edges. It then adds person-specific connections to account for individual variation. This hybrid strategy enables researchers to draw population-level inferences while still capturing subject-specific dynamics, making GIMME particularly well suited for heterogeneous populations. \\
+
+\noindent
+In this project, we focus on a fundamental and practically important question: How does the length of the time series $T$ affect GIMME's ability to recover the true group-level connectivity structure? To investigate this, we evaluate GIMME’s performance in recovering two types of directed edges in a known generative model:
+(i) contemporaneous edges in matrix $A$, representing directed relationships within the same time point; and (ii) lagged edges in matrix $\Phi$, representing directed influences from time $t-1$ to time $t$. \\
+
+\noindent
+Understanding how time series length affects recovery is important for experimental design. Collecting long time series is costly and sometimes infeasible in real data applications, so determining the minimum number of observations needed for reliable network estimation has direct implications for planning empirical studies. \\
+
+\noindent
+To address this question, we conduct a controlled simulation study in which multivariate time series are generated for $N = 100$ subjects with $p = 8$ variables under a known uSEM model with correlated noise. For each choice of $T \in \{50, 150, 300\}$, we generate 20 replications and apply GIMME to estimate the group-level networks. Performance is evaluated using sensitivity, specificity, false positive rate, and related metrics for both contemporaneous and lagged edges. 
+
+\section{Methodology}
+\label{sec:method}
+
+\subsection{Model and notation}
+We work within the unified structural equation modeling (uSEM) framework used by GIMME. For subject $i$ with $p$ variables, let $\eta_{i,t} \in \mathbb{R}^p$ denote the $p$-dimensional state vector at time $t$. The data-generating model is
+
+\begin{equation}
+\eta_{i,t} = A_i \,\eta_{i,t} + \Phi_i \,\eta_{i,t-1} + \zeta_{i,t},
+\end{equation}
+
+\noindent
+where
+
+\begin{itemize}
+    \item $A_i$ is a $p \times p$ matrix of contemporaneous effects within-time directed edges,
+    \item $\Phi_i$ is a $p \times p$ matrix of lag-1 effects between-time directed edges, and
+    \item $\zeta_{i,t} \sim N(0,\Psi_i)$ is the white noise with subject-specific covariance matrix $\Psi_i$.
+\end{itemize}
+
+\noindent
+Solving for $\eta_{i,t}$ gives the simulation form
+
+\begin{equation}
+\eta_{i,t} = (I - A_i)^{-1}\left( \Phi_i \,\eta_{i,t-1} + \zeta_{i,t} \right),
+\end{equation}
+
+\noindent
+which is what we implement in the code.
+
+\subsection{Group-level structure and individual heterogeneity}
+
+For each simulation, we first specify group-level matrices $A_{\text{common}}$ and $\Phi_{\text{common}}$, which represent the edges shared across subjects. The contemporaneous matrix $A_{\text{common}}$ follows a directed ring structure among eight nodes: node $j$ predicts node $j + 1$ with moderate positive weights sampled from $\mathrm{Unif}(0.2, 0.35)$, and all diagonal entries are fixed to zero. The lagged matrix $\Phi_{\text{common}}$ is intentionally denser, with autoregressive self-loops on all nodes sampled from $\mathrm{Uniform}(0.1, 0.2)$, supplemented by first- and second-off-diagonal bands and several randomly placed edges with smaller weights to create a richer temporal structure. \\
+
+\noindent
+Subject-specific matrices $A_i$ and $\Phi_i$ are then generated by adding a small number of individual edges to these group-level templates, introducing controlled heterogeneity across subjects. Individual-level variation is introduced using a helper function that (i) randomly selects a small number of zero entries in the common matrix, (ii) fills them with positive weights in a specified range, and (iii) enforces constraints. This leads to sparse subject-specific deviations from the group network. 
+
+\subsection{Noise covariance $\Psi_i$}
+For each subject, we generate a structured noise covariance matrix $\Psi_i$ via the helper function \texttt{generate\_Psi\_i()}:
+
+\begin{itemize}
+    \item Start from a diagonal matrix with common variance.
+    \item Select a random subset of off-diagonal pairs where $A_i$ has no edge and insert small positive covariances drawn from $\text{Uniform}(0.01, 0.05)$.
+    \item If needed, add a small jitter to the diagonal to ensure $\Psi_i$ is positive definite.
+\end{itemize}
+
+\noindent
+This creates correlated noise in directions that do not overlap with contemporaneous edges, mimicking realistic background covariance structure.
+
+\subsection{Simulation design}
+The main design factors are:
+
+\begin{itemize}
+    \item Number of subjects: $N = 100$ per data set.
+    \item Number of variables: $p = 8$.
+    \item Observed time points per subject: $T_{\text{obs}} \in \{50, 150, 300\}$.
+    \item Burn-in: 100 initial time points simulated and discarded to allow the process to approach stationarity.
+    \item Replications: for each value of $T_{\text{obs}}$, we run $R=20$ independent replications, for a total of 60 data sets.
+\end{itemize}
+
+\noindent
+For each subject, the function \texttt{simulate\_subject\_total()} generates the full time series of length $T_{\text{total}} = T_{\text{obs}} + 100$ using the uSEM recursion, and we keep the last $T_{\text{obs}}$ rows. The time series of each subject is saved as a separate text file, which is the input format expected by the \texttt{gimme} R package.
+
+\subsection{GIMME estimation}
+For each simulated data set, we call
+
+\begin{verbatim}
+fit <- gimme(
+  data        = "sim_data",
+  out         = "sim_results",
+  ar          = TRUE,
+  subgroup    = FALSE,
+  groupcutoff = group_cutoff,  # 0.75
+  subcutoff   = 0.50,
+  standardize = TRUE,
+  plot        = FALSE
+)
+\end{verbatim}
+
+\noindent
+Key choices:
+
+\begin{itemize}
+    \item \texttt{ar = TRUE} lets GIMME automatically include first-order autoregressive terms, consistent with the uSEM framework.
+    \item \texttt{groupcutoff = 0.75} requires that a candidate path significantly improves model fit for at least 75\% of subjects before it is added to the group model. This reflects the idea that group-level edges should be fairly common.
+    \item \texttt{subcutoff = 0.50} controls subject-specific paths; my focus here is on group-level recovery.
+\end{itemize}
+
+\noindent
+GIMME writes a summary path count matrix, which tallies how many subjects show each contemporaneous and lagged path in their final models. We post-process this file to recover estimated group-level adjacency matrices:
+
+\begin{itemize}
+    \item Columns containing the string "\texttt{lag}" correspond to lagged ($\Phi$) edges.
+    \item The remaining columns correspond to contemporaneous ($A$) edges.
+    \item A group-level edge is declared present if its count is at least \texttt{groupcutoff} $\times N_{\text{subj}}$.
+\end{itemize}
+
+\noindent
+The resulting binary matrices $A_{\text{est}}$ and $\Phi_{\text{est}}$ are compared with the true $A_{\text{common}}$ and $\Phi_{\text{common}}$.
+
+\subsection{Performance metrics}
+For each simulation and each matrix type ($A$ or $\Phi$), we compute:
+
+\begin{itemize}
+    \item True positives (TP): edges present in both true and estimated matrices.
+    \item False positives (FP): edges absent in truth but present in the estimate.
+    \item False negatives (FN): true edges that were missed.
+    \item True negatives (TN): zero edges correctly estimated as zero.
+\end{itemize}
+
+\noindent
+From these counts, we derive:
+
+\[
+\text{TPR} = \frac{\text{TP}}{\text{TP} + \text{FN}}, \qquad
+\text{Spec} = \frac{\text{TN}}{\text{TN} + \text{FP}}, \qquad
+\text{FPR} = \frac{\text{FP}}{\text{FP} + \text{TN}}, \qquad
+\text{FNR} = \frac{\text{FN}}{\text{TP} + \text{FN}}.
+\]
+
+\vspace{0.2in}
+
+\noindent
+We then average these metrics across the 20 replications at each $T_{\text{obs}}$.
+
+\section{Implementation}
+\label{sec:implement}
+
+All analyses were implemented in R using the packages \texttt{gimme}, \texttt{MASS}, \texttt{dplyr}, \texttt{ggplot2}, and \texttt{qgraph}. The code is organized into three logical blocks:
+
+\begin{enumerate}
+    \item \textbf{Helper functions.}
+    \begin{itemize}
+        \item \texttt{generate\_Psi\_i()} constructs subject-specific noise covariance matrices.
+        \item \texttt{generate\_random\_individual\_edges()} adds a random number of subject-specific edges to the common $A$ or $\Phi$ while respecting constraints.
+        \item \texttt{simulate\_subject\_total()} simulates the full multivariate time series using the uSEM recursion.
+        \item \texttt{compare\_mats()} computes TP, FP, FN, TN, and derived metrics for any pair of true vs.\ estimated matrices.
+    \end{itemize}
+    \item \textbf{Single-simulation driver.} The function \texttt{run\_one\_sim()} takes $T_{\text{obs}}$ and other parameters, generates the full synthetic data set for $N$ subjects, runs GIMME, extracts $A_{\text{est}}$ and $\Phi_{\text{est}}$, and returns the performance metrics. An optional flag \texttt{return\_nets = TRUE} additionally returns the true and estimated networks for plotting.
+    \item \textbf{Monte Carlo loop and summaries.} An outer loop runs \texttt{run\_one\_sim()} for each combination of $T_{\text{obs}}$ and replication index. Results are combined into a single data frame and summarized using \texttt{dplyr}.
+\end{enumerate}
+
+\noindent
+Several coding challenges arose during implementation. First, it was necessary to manage directory creation and cleanup carefully. The folders for simulation data and results must be cleared at the beginning of each simulation loop to ensure that no files from previous runs contaminate subsequent analyses. Second, the summary path count matrix produced by \texttt{gimme()} required careful parsing. Because contemporaneous and lagged paths are intermixed in this matrix, we relied on consistent column-name patterns to separate counts corresponding to the $A$ matrix from those corresponding to the $\Phi$ matrix, and then reconstructed the estimated adjacency matrices accordingly. Finally, runtime considerations played an important role. Each GIMME call is computationally intensive, especially with $N = 100$ subjects and moderately long time series, so we selected a replication size of $R = 20$ to strike a balance between Monte Carlo precision and manageable computation time. No external baseline method was implemented. Performance was evaluated relative to the known truth encoded in $A_{\text{common}}$ and $\Phi_{\text{common}}$.
+
+\section{Data Analysis}
+\label{sec:analysis}
+
+\subsection{Overall TPR patterns for $A$ and $\Phi$}
+
+Figure~\ref{fig:TPR-both} and the corresponding summary tables show a clear improvement in recovery as the length of the time series increases. \\
+
+\noindent
+For lagged edges ($\Phi$), the mean TPR across 20 replications increases gradually with $T$:
+
+\begin{center}
+\begin{tabular}{ccc}
+\hline
+$T_{\text{obs}}$ & mean TPR ($\Phi$) & sd TPR ($\Phi$) \\
+\hline
+50  & 0.35 & 0.01 \\
+150 & 0.38 & 0.04 \\
+300 & 0.58 & 0.03 \\
+\hline
+\end{tabular}
+\end{center}
+
+\vspace{0.2in}
+
+\noindent
+Even with only 50 time points, GIMME identifies about one-third of the true lagged edges at the group level. Increasing to 150 observations yields only a modest gain, but by 300 observations the average lagged TPR rises to about 0.58. The standard deviations are fairly small, suggesting stable performance across replications. \\
+
+\noindent
+For contemporaneous edges ($A$), the dependence on $T$ is much stronger:
+
+\begin{center}
+\begin{tabular}{cccccc}
+\hline
+$T_{\text{obs}}$ & mean TPR & mean FPR & mean Spec & mean FN & mean FNR \\
+\hline
+50  & 0.00 & 0.00  & 1.000 & 7.00 & 1.00 \\
+150 & 0.67 & 0.009 & 0.999 & 2.30 & 0.33 \\
+300 & 0.94 & 0.026 & 0.997 & 0.45 & 0.06 \\
+\hline
+\end{tabular}
+\end{center}
+
+\vspace{0.2in}
+
+\noindent
+At $T = 50$, GIMME fails to include any group-level contemporaneous edges: TPR and FPR are essentially 0, and all true $A$ edges are treated as false negatives. At $T = 150$, performance improves substantially, and by $T = 300$ recovery is excellent: mean TPR is approximately 0.94 and mean FNR is only 0.06, while FPR remains below 0.03.
+
+\vspace{0.2in}
+
+\begin{figure}[ht]
+    \centering
+    \includegraphics[width=0.8\textwidth]{TPR_vs_T(A&Phi).png}
+    \caption{True positive rate (TPR) versus $T$ for contemporaneous ($A$) and lagged ($\Phi$) group-level edges.}
+    \label{fig:TPR-both}
+\end{figure}
+
+\vspace{0.2in}
+
+\noindent
+Figure~\ref{fig:A-TPR} emphasizes that the mean TPR for $A$ rises steeply from 0 at 50 time points to near 1 at 300, with decreasing variability.
+
+\vspace{0.2in}
+
+\begin{figure}[ht]
+    \centering
+    \includegraphics[width=0.8\textwidth]{Recovery(A).png}
+    \caption{Mean TPR for group-level contemporaneous edges ($A$) across different time series lengths $T$, with one standard deviation error bars.}
+    \label{fig:A-TPR}
+\end{figure}
+
+\noindent\textbf{Interpretation.} These results suggest that, under the current simulation design and group cutoff, GIMME needs moderately long time series (150--300 points) to reliably detect group-level contemporaneous connections, whereas lagged edges are consistently harder to recover. The combination of fewer observations per parameter and the more complex lagged structure in $\Phi$ likely contributes to the lower TPR for lagged edges.
+
+\subsection{Network plots: true vs.\ estimated $A$}
+
+Figure~\ref{fig:A-nets} compares the true and estimated group-level contemporaneous networks for a representative simulation at each value of $T_{\text{obs}}$. The true $A$ matrix is identical across all conditions and follows a directed ring structure in which node 1 influences node 2, node 2 influences node 3, and so on through node 8, with moderately strong positive weights. At $T = 50$, the estimated group network is almost empty: with so few observations per subject, very few individual models include the ring edges reliably enough to exceed the 0.75 group cutoff. When $T$ increases to 150, the estimated network begins to resemble the true ring more clearly, although several edges remain undetected, consistent with the mid-range TPR of approximately 0.67. At $T = 300$, the ring structure is nearly perfectly recovered, with all or almost all true edges present and very few spurious connections, matching the high TPR and low false-negative rate observed in the numerical summaries.
+
+\begin{figure}[ht]
+    \centering
+    \includegraphics[width=0.8\linewidth]{Network_plot(A).png}
+    \caption{True and estimated group-level contemporaneous networks $A$ for $T = 50$, $T = 150$, and $T = 300$.}
+    \label{fig:A-nets}
+\end{figure}
+
+\subsection{Network plots: true vs.\ estimated $\Phi$}
+
+Figure~\ref{fig:Phi-nets} presents the corresponding comparisons for the lagged network $\Phi$. The true $\Phi$ matrix is substantially denser than $A$, containing autoregressive self-loops on all nodes as well as numerous off-diagonal lagged connections that create a more complex temporal structure. At both $T = 50$ and $T = 150$, however, the estimated group-level lagged networks are extremely sparse, typically containing at most a few weak edges or none at all, with the vast majority of true lagged paths being missed. Even at $T = 300$, where contemporaneous recovery is excellent, the estimated $\Phi$ network remains much sparser than the truth: although a handful of key edges begin to appear, large portions of the true lagged structure remain unrecovered.
+
+\begin{figure}[ht]
+    \centering
+    \includegraphics[width=0.8\linewidth]{Network_plot(Phi).png}
+    \caption{True and estimated group-level lagged networks $\Phi$ for $T = 50$, $T = 150$, and $T = 300$.}
+    \label{fig:Phi-nets}
+\end{figure}
+
+\noindent
+These plots visually explain the more modest TPR values for $\Phi$. The combination of a denser true lagged network, the group cutoff, and competition between contemporaneous and lagged paths during model selection appears to make lagged edges particularly difficult to recover.
+
+\section{Conclusions}
+\label{sec:conclusion}
+
+This simulation study used synthetic multivariate time series to evaluate how the number of observations per subject affects GIMME's ability to recover group-level connectivity in a uSEM setting.
+
+\subsection*{Key findings}
+
+\noindent
+Overall, the simulation results show a clear and consistent relationship between time series length and GIMME’s ability to recover group-level connectivity. Recovery of contemporaneous edges was highly sensitive to $T$: with only 50 observations per subject, GIMME did not identify any group-level contemporaneous connections under the 0.75 group cutoff, whereas at $T = 150$ it successfully recovered roughly two-thirds of the true $A$ edges, and by $T = 300$ recovery was excellent with a mean TPR of approximately 0.94 and minimal false positives. In contrast, lagged edges in the denser $\Phi$ matrix were substantially more difficult to estimate. Although TPR increased with $T$, it rose only from about 0.35 at $T = 50$ to about 0.58 at $T = 300$, indicating that many true lagged paths fail to meet the group-level threshold even with relatively long time series. These patterns highlight that GIMME is inherently conservative when $T$ is small: noisy individual fits combined with a strict group cutoff produce sparse group networks that avoid false positives but exhibit high false negative rates. The network visualizations reinforce these quantitative findings, showing that the contemporaneous ring structure is absent at $T = 50$, partially visible at $T = 150$, and nearly perfectly reconstructed at $T = 300$, while the lagged network remains noticeably under-estimated across all conditions. 
+
+\subsection*{Practical implications}
+The findings of this study carry several practical implications for researchers considering the use of GIMME in applications involving multivariate time-series data. First, the results suggest that at least 150 time points per subject are necessary before GIMME begins to consistently recover meaningful group-level contemporaneous structure. With fewer observations, the algorithm tends to produce extremely sparse group networks due to insufficient evidence for paths meeting the group-level threshold. In contrast, time series of approximately 300 observations appear to provide strong and reliable recovery of contemporaneous edges, with high sensitivity and minimal false positives. However, even with 300 observations, lagged connections remain considerably more difficult to identify, as reflected in the noticeably lower TPR values for the $\Phi$ matrix. Researchers whose primary interest lies in modeling lagged dynamics may therefore require substantially longer time series, more permissive group-level cutoffs, or alternative modeling strategies that emphasize temporal structure.
+
+\subsection*{Future directions}
+
+This work suggests several avenues for further investigation. A natural extension would be to examine a wider range of group cutoff values to characterize how sensitivity–specificity trade-offs change under different criteria for declaring group-level paths. It would also be useful to vary the density and strength of true lagged edges in the data-generating process to identify conditions under which the $\Phi$ matrix becomes easier to recover. Incorporating richer forms of heterogeneity would better approximate real datasets and clarify how heterogeneity interacts with time-series length. Finally, comparing GIMME with alternative connectivity estimation approaches under matched simulations would provide a more comprehensive assessment of its strengths and limitations. \\
+
+\section*{Team Member Contribution}
+Both team members contributed substantially and fairly to the completion of this project. While Yiji Xue took primary responsibility for developing and refining the R code used for data generation, simulation, and model estimation. Linlin Liu led the preparation of the written report. We joinly created the presentation slides for our own parts. Throughout the project, we worked together, regularly reviewing each other’s work and discussing design decisions. Although our specific tasks differed, the overall workload was shared equally, and the final project reflects the combined and collaborative effort of both team members.
+
+\section*{References}
+Fair, D. A., Posner, J., Nagel, B. J., Bathula, D., Dias, T. G. C., Mills, K. L., Blythe, M. S., Giwa, A., Schmitt, C. F., \& Nigg, J. T. (2010). Atypical default network connectivity in youth with attention-deficit/hyperactivity disorder. \textit{Biological Psychiatry}, 68(12), 1084--1091. \\
+
+\noindent
+Hillary, F. G., Medaglia, J. D., Gates, K. M., Molenaar, P. C. M., Slocomb, J., Peechatka, A., \& Good, D. C. (2011). Examining working memory task acquisition in a disrupted neural network. \textit{Brain: A Journal of Neurology}, 134, 1555-1570. \\
+
+\noindent
+Gates, K. M., Molenaar, P. C. M., Hillary, F. G., Ram, N., \& Rovine, M. J. (2010). Automatic search in fMRI connectivity mapping: an alternative to Granger causality using formal equivalences between SEM path modeling, VAR, and unified SEM. \textit{NeuroImage}, 53, 1118-1125. \\
+
+\noindent
+Gates, K. M., Molenaar, P. C. M., Hillary, F. G., \& Slobounov, S. (2011). Extended unified SEM approach for modeling event-related fMRI data. \textit{NeuroImage}, 54, 1151-11158. \\
+
+\noindent
+Gates, K.M., \& Molenaar, P.C.M. (2012). Group search algorithm recovers effective connectivity maps for individuals in homogeneous and heterogeneous samples. \textit{NeuroImage}, 63, 310--319. \\
+
+\noindent
+Kim, J., Zhu, W., Chang, L., Bentler, P.M., \& Ernst, T. (2007). Unified structural equation modeling for the analysis of multisubject, multivariate functional fMRI data. \textit{Human Brain Mapping}, 28, 85--93. \\
+
+\noindent
+Molenaar, P. C. M. (2004). A manifesto on psychology as idiographic science: bringing the person back into scientific psychology, this time forever. \textit{Measurement}, 2(4), 201--218. \\
+
+\noindent
+Smith, S.M., Miller, K.L., Salimi-Khorshidi, G., Webster, M., Beckmann, C. F., Nichols, T. E., Ramsey, J. D., \& Woolrich, M. W. (2011). Network modeling methods for FMRI. \textit{NeuroImage}, 54, 875--891.
+
+\end{document}
